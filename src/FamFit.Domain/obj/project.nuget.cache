@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "2tSRuH+DLLI=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\ugolo\\Projects\\famfit\\src\\FamFit.Domain\\FamFit.Domain.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\ugolo\\.nuget\\packages\\microsoft.netcore.app.ref\\9.0.20\\microsoft.netcore.app.ref.9.0.20.nupkg.sha512",
+    "C:\\Users\\ugolo\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\9.0.20\\microsoft.windowsdesktop.app.ref.9.0.20.nupkg.sha512",
+    "C:\\Users\\ugolo\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\9.0.20\\microsoft.aspnetcore.app.ref.9.0.20.nupkg.sha512"
+  ],
+  "logs": []
+}
