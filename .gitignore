@@ -1,0 +1,65 @@
+## Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.ssh/
+
+## Visual Studio
+.vs/
+*.user
+*.suo
+*.cache
+*.ipch
+*.pdb.bak
+*.obj
+*.pch
+*.aps
+*.resx
+*.resources
+*.rsp
+*.sbr
+*.log
+*.lastbuildstate
+*.userprofilecache
+
+## JetBrains Rider
+.idea/
+*.sln.iml
+*.sln.user
+*.sln.DotSettings.user
+
+## Visual Studio Code
+.vscode/
+
+## .NET
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.userosscache
+*.sln.docstates
+
+## Node (Frontend, future)
+node_modules/
+dist/
+build/
+*.local
+
+## Environment files (contain secrets!)
+.env
+.env.*
+!env.example
+
+## Database
+*.db
+*.db-shm
+*.db-wal
+
+## Misc
+*.swp
+*.swo
+*~
+.DS_Store
+*.log
