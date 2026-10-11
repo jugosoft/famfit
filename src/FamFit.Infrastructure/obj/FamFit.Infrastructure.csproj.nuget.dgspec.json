@@ -1,7 +1,7 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Users\\ugolo\\Projects\\famfit\\src\\FamFit.Infrastructure\\FamFit.Infrastructure.csproj": {}
+    "C:\\Users\\ugolo\\Projects\\famfit\\src\\FamFit.Infrastructure\\FamFit.Infrastructure.csproj": {}
   },
   "projects": {
     "C:\\Users\\ugolo\\Projects\\famfit\\src\\FamFit.Application\\FamFit.Application.csproj": {
@@ -166,14 +166,14 @@
         }
       }
     },
-    "c:\\Users\\ugolo\\Projects\\famfit\\src\\FamFit.Infrastructure\\FamFit.Infrastructure.csproj": {
+    "C:\\Users\\ugolo\\Projects\\famfit\\src\\FamFit.Infrastructure\\FamFit.Infrastructure.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\ugolo\\Projects\\famfit\\src\\FamFit.Infrastructure\\FamFit.Infrastructure.csproj",
+        "projectUniqueName": "C:\\Users\\ugolo\\Projects\\famfit\\src\\FamFit.Infrastructure\\FamFit.Infrastructure.csproj",
         "projectName": "FamFit.Infrastructure",
-        "projectPath": "c:\\Users\\ugolo\\Projects\\famfit\\src\\FamFit.Infrastructure\\FamFit.Infrastructure.csproj",
+        "projectPath": "C:\\Users\\ugolo\\Projects\\famfit\\src\\FamFit.Infrastructure\\FamFit.Infrastructure.csproj",
         "packagesPath": "C:\\Users\\ugolo\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\ugolo\\Projects\\famfit\\src\\FamFit.Infrastructure\\obj\\",
+        "outputPath": "C:\\Users\\ugolo\\Projects\\famfit\\src\\FamFit.Infrastructure\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\ugolo\\AppData\\Roaming\\NuGet\\NuGet.Config"

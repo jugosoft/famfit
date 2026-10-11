@@ -8,12 +8,19 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.Security.Claims;
 using System.Text;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // === Configuration ===
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = null;
+        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
+    });
 builder.Services.AddEndpointsApiExplorer();
 
 // === OpenAPI / Swagger ===
@@ -23,7 +30,8 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "FamFit API",
         Version = "v1",
-        Description = "Семейный PWA-трекер активности. OpenAPI-контракт для генерации TypeScript-типов через openapi-typescript."
+        Description = "Семейный PWA-трекер активности. OpenAPI-контракт для генерации TypeScript-типов через openapi-typescript.",
+        Contact = new OpenApiContact { Name = "FamFit Support", Email = "support@famfit.local" }
     });
 
     // JWT Auth в Swagger
@@ -34,7 +42,7 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = "Bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "JWT-токен, полученный через /api/auth/login"
+        Description = "JWT-токен, полученный через POST /api/auth/login"
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -60,6 +68,13 @@ var jwtSecret = jwtSection["Secret"]
 var jwtIssuer = jwtSection["Issuer"] ?? "FamFit.WebApi";
 var jwtAudience = jwtSection["Audience"] ?? "FamFitClient";
 
+// Валидация длины JWT-секрета
+if (jwtSecret.Length < 32)
+{
+    throw new InvalidOperationException(
+        "JWT secret must be at least 32 characters. Update your appsettings.json.");
+}
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -73,21 +88,45 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = jwtAudience,
             IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(jwtSecret)),
-            ClockSkew = TimeSpan.Zero
+            ClockSkew = TimeSpan.Zero,
+            // Require expiration claim
+            RequireExpirationTime = true
         };
 
         options.Events = new JwtBearerEvents
         {
             OnAuthenticationFailed = context =>
             {
-                Console.WriteLine($"[JWT] Authentication failed: {context.Exception.Message}");
+                if (context.Exception is SecurityTokenExpiredException)
+                {
+                    Console.WriteLine("[JWT] Token expired for user: " +
+                        context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier));
+                }
+                else
+                {
+                    Console.WriteLine($"[JWT] Authentication failed: {context.Exception.Message}");
+                }
                 return Task.CompletedTask;
             },
             OnTokenValidated = context =>
             {
                 var userId = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
-                Console.WriteLine($"[JWT] Token validated for user: {userId}");
+                var role = context.Principal?.FindFirstValue(ClaimTypes.Role);
+                Console.WriteLine($"[JWT] Token validated for user: {userId} role: {role}");
                 return Task.CompletedTask;
+            },
+            OnChallenge = context =>
+            {
+                // Кастомный ответ при отсутствии авторизации
+                context.HandleResponse();
+                context.Response.StatusCode = 401;
+                context.Response.ContentType = "application/json";
+                var result = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    error = "Unauthorized",
+                    message = "Valid authentication token is required."
+                });
+                return context.Response.WriteAsync(result);
             }
         };
     });
@@ -97,26 +136,47 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("Admin", policy =>
         policy.RequireClaim(ClaimTypes.Role, Role.Admin.ToString()));
+
+    options.AddPolicy("Member", policy =>
+        policy.RequireClaim(ClaimTypes.Role, Role.Member.ToString()));
+
+    // По умолчанию — любая авторизованная роль
+    options.DefaultPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
 });
 
 // === Application Layer (MediatR) ===
 builder.Services.AddMediatR(cfg =>
-    cfg.RegisterServicesFromAssembly(typeof(FamFit.Application.Interfaces.IApplicationDbContext).Assembly));
+    cfg.RegisterServicesFromAssembly(typeof(IApplicationDbContext).Assembly));
 
 // === Infrastructure Layer ===
 builder.Services.AddInfrastructure(builder.Configuration);
 
 // === CORS (для PWA-фронтенда) ===
+var frontendUrl = builder.Configuration.GetValue<string>("FrontendUrl")
+    ?? "http://localhost:5173";
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FamFitPWA", policy =>
-        policy.WithOrigins(
-                builder.Configuration.GetValue<string>("FrontendUrl")
-                ?? "http://localhost:5173",
-                "http://localhost:3000")
+        policy.WithOrigins(frontendUrl, "http://localhost:3000")
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .AllowCredentials());
+            .AllowCredentials()
+            .SetPreflightMaxAge(TimeSpan.FromMinutes(10)));
+});
+
+// === Rate Limiting (для auth endpoints) ===
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("auth-limiter", limiterOptions =>
+    {
+        limiterOptions.PermitLimit = 5;
+        limiterOptions.Window = TimeSpan.FromMinutes(15);
+        limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        limiterOptions.QueueLimit = 0;
+    });
 });
 
 // === Health Checks ===
@@ -136,8 +196,31 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+// Production security headers
+if (!app.Environment.IsDevelopment())
+{
+    app.Use(async (context, next) =>
+    {
+        context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+        context.Response.Headers.Append("X-Frame-Options", "DENY");
+        context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
+        context.Response.Headers.Append("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+        await next(context);
+    });
+}
+
 app.UseHttpsRedirection();
 app.UseCors("FamFitPWA");
+
+// Rate limiting for auth endpoints
+app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/api/auth"), appBuilder =>
+{
+    appBuilder.UseRouting();
+    appBuilder.UseAuthorization();
+    appBuilder.UseRateLimiter();
+});
+
+app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

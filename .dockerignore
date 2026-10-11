@@ -1,0 +1,26 @@
+# Docker build cache
+**/bin/
+**/obj/
+
+# Node
+node_modules/
+src/FamFit.Frontend/node_modules/
+src/FamFit.Frontend/dist/
+
+# IDE
+.idea/
+.vs/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env files
+.env
+.env.*
+!env.example
+
+# Logs
+*.log
+npm-debug.log*

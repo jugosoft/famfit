@@ -41,11 +41,13 @@ obj/
 *.userosscache
 *.sln.docstates
 
-## Node (Frontend, future)
+## Node (Frontend)
 node_modules/
 dist/
 build/
 *.local
+src/FamFit.Frontend/node_modules/
+src/FamFit.Frontend/dist/
 
 ## Environment files (contain secrets!)
 .env
@@ -56,6 +58,12 @@ build/
 *.db
 *.db-shm
 *.db-wal
+postgres_data/
+
+## Docker
+.docker/
+*.tar
+*.tar.gz
 
 ## Misc
 *.swp

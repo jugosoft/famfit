@@ -1,4 +1,7 @@
-import { http } from '@/lib/http';
+/**
+ * Универсальные типы ответов API.
+ * Синхронизированы с бэкенд-моделями FamFit.WebApi.Models.
+ */
 
 export interface ApiResponse<T> {
   data: T | null;
@@ -16,7 +19,19 @@ export interface PagedResponse<T> {
   hasPreviousPage: boolean;
 }
 
-// Auth
+/**
+ * ==================== Auth ====================
+ * Синхронизировано с AuthEndpoints.UserDto, LoginResponse, RegisterRequest
+ */
+
+export interface UserDto {
+  id: string;
+  name: string;
+  email: string;
+  role: 'Admin' | 'Member';
+  streakCount: number;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -35,22 +50,35 @@ export interface RegisterRequest {
   password: string;
 }
 
-export interface UserDto {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  streakCount: number;
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
 }
 
-// ActivityType
+/**
+ * ==================== ActivityType ====================
+ * Синхронизировано с FamFit.Domain.Entities.ActivityType
+ */
+
+export type UnitType = 'Count' | 'Time';
+
 export interface ActivityTypeDto {
   id: string;
   name: string;
-  unitType: 'Count' | 'Time';
+  unitType: UnitType;
+  isActive?: boolean;
 }
 
-// ActivityLog
+export interface CreateActivityTypeRequest {
+  name: string;
+  unitType: UnitType;
+}
+
+/**
+ * ==================== ActivityLog ====================
+ * Синхронизировано с FamFit.Domain.Entities.ActivityLog
+ */
+
 export interface ActivityLogDto {
   id: string;
   userId: string;
@@ -60,7 +88,17 @@ export interface ActivityLogDto {
   activityType?: ActivityTypeDto;
 }
 
-// PushSubscription
+export interface LogActivityRequest {
+  activityTypeId: string;
+  value: number;
+  timestamp?: string;
+}
+
+/**
+ * ==================== PushSubscription ====================
+ * Синхронизировано с FamFit.Domain.Entities.PushSubscription
+ */
+
 export interface PushSubscriptionDto {
   id: string;
   userId: string;
@@ -70,7 +108,17 @@ export interface PushSubscriptionDto {
   createdAt: string;
 }
 
-// VAPID
+export interface RegisterPushSubscriptionRequest {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}
+
+/**
+ * ==================== VAPID ====================
+ * Синхронизировано с VapidEndpoints.VapidPublicKeyResponse
+ */
+
 export interface VapidPublicKeyResponse {
   publicKey: string;
 }

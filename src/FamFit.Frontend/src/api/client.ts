@@ -3,11 +3,15 @@ import type {
   LoginRequest,
   LoginResponse,
   RegisterRequest,
+  ChangePasswordRequest,
   UserDto,
   ActivityTypeDto,
+  CreateActivityTypeRequest,
   ActivityLogDto,
+  LogActivityRequest,
   PagedResponse,
   PushSubscriptionDto,
+  RegisterPushSubscriptionRequest,
   VapidPublicKeyResponse
 } from '@/api/types';
 
@@ -25,6 +29,10 @@ export async function register(data: RegisterRequest): Promise<UserDto> {
   return response;
 }
 
+export async function changePassword(data: ChangePasswordRequest): Promise<void> {
+  await http.put<void>('/auth/change-password', data);
+}
+
 export function logout(): void {
   localStorage.removeItem('famfit_token');
   localStorage.removeItem('famfit_user');
@@ -40,10 +48,22 @@ export function getCurrentUser(): UserDto | null {
   }
 }
 
+export async function getMe(): Promise<UserDto> {
+  return http.get<UserDto>('/auth/me');
+}
+
 // ==================== Activity Types API ====================
 
 export async function getActivityTypes(): Promise<ActivityTypeDto[]> {
   return http.get<ActivityTypeDto[]>('/activity-types');
+}
+
+export async function createActivityType(data: CreateActivityTypeRequest): Promise<ActivityTypeDto> {
+  return http.post<ActivityTypeDto>('/activity-types', data);
+}
+
+export async function deactivateActivityType(id: string): Promise<void> {
+  await http.put<void>(`/activity-types/${id}/deactivate`);
 }
 
 // ==================== Activity Logs API ====================
@@ -58,34 +78,22 @@ export async function getActivityLogs(
   );
 }
 
-export async function logActivity(data: {
-  activityTypeId: string;
-  value: number;
-  timestamp?: string;
-}): Promise<ActivityLogDto> {
+export async function logActivity(data: LogActivityRequest): Promise<ActivityLogDto> {
   return http.post<ActivityLogDto>('/activity-logs', data);
 }
 
-export async function logActivityWithNotification(data: {
-  activityTypeId: string;
-  value: number;
-  timestamp?: string;
-}): Promise<ActivityLogDto> {
+export async function logActivityWithNotification(data: LogActivityRequest): Promise<ActivityLogDto> {
   return http.post<ActivityLogDto>('/activity-logs/with-notification', data);
 }
 
 // ==================== Push Subscriptions API ====================
 
-export async function registerPushSubscription(data: {
-  endpoint: string;
-  p256dh: string;
-  auth: string;
-}): Promise<PushSubscriptionDto> {
+export async function registerPushSubscription(data: RegisterPushSubscriptionRequest): Promise<PushSubscriptionDto> {
   return http.post<PushSubscriptionDto>('/push-subscriptions', data);
 }
 
 export async function deletePushSubscription(id: string): Promise<void> {
-  return http.delete<void>(`/push-subscriptions/${id}`);
+  await http.delete<void>(`/push-subscriptions/${id}`);
 }
 
 // ==================== VAPID API ====================

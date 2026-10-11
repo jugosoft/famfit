@@ -2,67 +2,182 @@
 
 Монорепозиторий с Clean Architecture, SOLID и CQRS (MediatR).
 
-## Структура
-
 ```
-src/
-├── FamFit.Domain/          # Ядро: сущности,枚举ы
-├── FamFit.Application/     # Бизнес-логика: CQRS, интерфейсы, MediatR
-├── FamFit.Infrastructure/  # Техника: EF Core, PostgreSQL, WebPush (VAPID)
-├── FamFit.WebApi/          # Презентация: Minimal API, JWT, Swagger
-└── FamFit.Frontend/        # React 19 + Vite + TypeScript + Tailwind + Shadcn UI
+FamFit/
+├── FamFit.sln
+├── Directory.Build.props
+├── docker-compose.yml
+├── .dockerignore
+├── .gitignore
+├── README.md
+└── src/
+    ├── FamFit.Domain/          # Ядро: сущности, enum'ы
+    ├── FamFit.Application/     # Бизнес-логика: CQRS, MediatR
+    ├── FamFit.Infrastructure/  # EF Core, PostgreSQL, WebPush VAPID
+    ├── FamFit.WebApi/          # Minimal API, JWT, Swagger
+    │   ├── Dockerfile
+    │   └── appsettings.json
+    └── FamFit.Frontend/        # React 19, Vite, Tailwind, Shadcn UI
+        ├── Dockerfile
+        ├── nginx.conf
+        ├── vite.config.ts
+        └── src/
+            ├── api/            # Типы + API client
+            ├── components/     # UI Kit (12+ компонентов)
+            ├── contexts/       # Auth context
+            ├── hooks/          # React Query hooks
+            ├── lib/            # http client, utils
+            ├── pages/          # 6 страниц (Login, Dashboard, Activity, Admin, Profile, Settings)
+            └── router.tsx      # React Router v6
 ```
 
-## Быстрый старт
+## 🚀 Быстрый старт
 
-### Backend
+### Вариант 1: Docker (рекомендуется)
 
 ```bash
+# Запуск всего стека (PostgreSQL + Backend + Frontend)
+docker-compose up --build
+
+# Бэкенд: http://localhost:5000
+# Фронтенд: http://localhost:80
+# Swagger: http://localhost:5000/swagger
+```
+
+### Вариант 2: Локальная разработка
+
+```bash
+# 1. Запустите PostgreSQL
+docker run -d --name famfit-db -e POSTGRES_DB=famfit -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16-alpine
+
+# 2. Backend
 cd src/FamFit.WebApi
 dotnet restore
 dotnet run
-```
 
-API откроется на `http://localhost:5000`
-Swagger: `http://localhost:5000/swagger`
-
-### Frontend
-
-```bash
+# 3. Frontend (в другом терминале)
 cd src/FamFit.Frontend
 npm install
 npm run dev
-```
 
-Фронтенд откроется на `http://localhost:5173`
-
-### Генерация TypeScript-типов из OpenAPI
-
-```bash
-# Запустите бэкенд, затем:
+# 4. Генерация типов из OpenAPI (после запуска бэкенда)
 npm run openapi:generate
 ```
 
-## Архитектура
+## 📐 Архитектура
 
-- **Domain**: чистые бизнес-сущности, без внешних зависимостей
-- **Application**: CQRS (MediatR), интерфейсы, валидация
-- **Infrastructure**: EF Core + PostgreSQL, WebPush VAPID
-- **WebApi**: Minimal API, JWT auth, Swagger/OpenAPI
-- **Frontend**: React 19, TypeScript, Tailwind CSS, Shadcn UI, Zustand, React Query
+| Слой | Технология | Описание |
+|---|---|---|
+| **Domain** | Чистый C# | Сущности, enum'ы, бизнес-правила |
+| **Application** | MediatR | CQRS (Commands/Queries), интерфейсы |
+| **Infrastructure** | EF Core + NPgsql | DbContext, VAPID Push, репозитории |
+| **WebApi** | Minimal API | JWT auth, Swagger, rate limiting |
+| **Frontend** | React 19 + TS | Tailwind CSS, Shadcn UI, Zustand, React Query |
 
-## Роли
+## 🔐 Безопасность
 
-- **FamilyAdmin**: управляет ActivityType в админке
-- **FamilyMember**: логирует только свою активность
+- **JWT Bearer** с валидацией issuer/audience/lifetime
+- **BCrypt** (cost=12) для хеширования паролей
+- **Rate limiting** на auth endpoints (5 запросов / 15 мин)
+- **CORS** с whitelist доменов
+- **Security headers** в production (HSTS, X-Frame-Options, CSP)
+- **Минимум 32 символа** для JWT secret
+- **Password validation** на регистрации (мин. 8 символов)
+- **Смена пароля** с проверкой текущего
 
-## Web Push (VAPID)
+## 📱 Страницы Frontend
 
-1. Сгенерируйте ключи:
-   ```bash
-   cd src/FamFit.Infrastructure
-   dotnet run -- generate-vapid
-   ```
-2. Скопируйте ключи в `appsettings.json`
-3. Фронтенд получает публичный ключ через `GET /api/vapid/public-key`
-4. При записи активности можно отправить push с кнопками действий
+| Страница | Маршрут | Описание |
+|---|---|---|
+| **Login** | `/login` | Вход / Регистрация |
+| **Dashboard** | `/dashboard` | Статистика, серия, quick actions |
+| **Activity** | `/activity` | Форма записи + история с пагинацией |
+| **Admin** | `/admin` | CRUD типов активностей (только Admin) |
+| **Profile** | `/profile` | Редактирование профиля + смена пароля |
+| **Settings** | `/settings` | Настройки, уведомления, выход |
+
+## 🎨 UI Kit (12+ компонентов)
+
+- `Button` — с variant, size, isLoading
+- `Input` — с label, error, hint, prefix, suffix
+- `Card` — Card, CardHeader, CardTitle, CardContent, CardFooter
+- `Select` — кастомный select с placeholder
+- `Dialog` — модальное окно с backdrop
+- `Badge` — default, secondary, destructive, outline
+- `Avatar` — sm/md/lg с fallback
+- `Table` — Table, TableHeader, TableBody, TableRow, TableHead, TableCell
+- `Tabs` — горизонтальные табы
+- `Progress` — прогресс-бар
+- `Skeleton` — skeleton loading
+- `Alert` — default, destructive, success, info
+- `Pagination` — с ellipsis
+- `StatCard` — карточка статистики с trend
+- `EmptyState` — пустое состояние с action
+- `Separator` — горизонтальный/вертикальный
+- `DropdownMenu` — выпадающее меню
+- `Stepper` — пошаговый индикатор
+
+## 🐳 Docker
+
+### Backend Dockerfile
+- Multi-stage build: SDK → ASP.NET Core Alpine
+- Размер образа ~200MB
+- Автоматический seed при старте
+
+### Frontend Dockerfile
+- Multi-stage build: Node 22 → Nginx Alpine
+- Gzip сжатие, SPA routing
+- Proxy /api к бэкенду
+
+### docker-compose.yml
+- PostgreSQL 16 (volume)
+- Backend (port 5000)
+- Frontend (port 80)
+- Health checks для всех сервисов
+
+## 📡 API Endpoints
+
+| Method | Endpoint | Auth | Описание |
+|---|---|---|---|
+| `POST` | `/api/auth/login` | Public | Вход → JWT |
+| `POST` | `/api/auth/register` | Public | Регистрация |
+| `PUT` | `/api/auth/change-password` | User | Смена пароля |
+| `GET` | `/api/auth/me` | User | Текущий пользователь |
+| `GET` | `/api/activity-types/` | Public | Список типов |
+| `POST` | `/api/activity-types/` | Admin | Создать тип |
+| `PUT` | `/api/activity-types/{id}/deactivate` | Admin | Деактивировать |
+| `POST` | `/api/activity-logs/` | User | Записать активность |
+| `POST` | `/api/activity-logs/with-notification` | User | Записать + push |
+| `GET` | `/api/activity-logs/` | User | История (пагинация) |
+| `POST` | `/api/push-subscriptions/` | User | Регистрация подписки |
+| `DELETE` | `/api/push-subscriptions/{id}` | User | Удаление подписки |
+| `GET` | `/api/vapid/public-key` | Public | VAPID public key |
+| `GET` | `/health` | Public | Health check |
+
+## 🏗️ Генерация типов
+
+```bash
+# После запуска бэкенда:
+cd src/FamFit.Frontend
+npm run openapi:generate
+# Генерирует src/api/types/api.ts из swagger.json
+```
+
+## 📝 Роли
+
+- **FamilyAdmin** — полный доступ, управление ActivityTypes
+- **FamilyMember** — запись активности, просмотр своей истории
+
+## 📦 Зависимости
+
+### Backend
+- .NET 9, EF Core 9, Npgsql
+- MediatR 12, WebPush, BCrypt.Net-Next
+- Microsoft.AspNetCore.OpenApi, Swashbuckle
+
+### Frontend
+- React 19, Vite 6, TypeScript 5.7
+- Tailwind CSS 4, React Router 6
+- Zustand 5, React Query 5
+- Vite PWA Plugin
+- date-fns, lucide-react

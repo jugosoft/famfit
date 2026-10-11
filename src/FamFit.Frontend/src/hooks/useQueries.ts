@@ -9,9 +9,24 @@ import {
   logActivity,
   logActivityWithNotification,
   registerPushSubscription,
-  deletePushSubscription
+  deletePushSubscription,
+  getMe
 } from '@/api/client';
 import type { ActivityTypeDto, ActivityLogDto, PagedResponse } from '@/api/types';
+
+// ==================== Auth Queries ====================
+
+export function useCurrentUser() {
+  return useQuery({
+    queryKey: ['auth', 'me'],
+    queryFn: getMe,
+    staleTime: 1000 * 60 * 5,
+    retry: (failCount: number, error: Error) => {
+      // Не ретраим при 401
+      return !(error instanceof ApiError && (error as unknown as { status: number }).status === 401);
+    }
+  });
+}
 
 // ==================== Activity Types Queries ====================
 
@@ -19,8 +34,8 @@ export function useActivityTypes() {
   return useQuery({
     queryKey: ['activity-types'],
     queryFn: getActivityTypes,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    gcTime: 1000 * 60 * 30 // 30 minutes
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30
   });
 }
 
@@ -41,10 +56,8 @@ export function useLogActivity() {
 
   return useMutation({
     mutationFn: logActivity,
-    onSuccess: (data, variables) => {
-      // Invalidate activity logs cache
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activity-logs'] });
-      return data;
     }
   });
 }
@@ -54,9 +67,8 @@ export function useLogActivityWithNotification() {
 
   return useMutation({
     mutationFn: logActivityWithNotification,
-    onSuccess: (data, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activity-logs'] });
-      return data;
     }
   });
 }

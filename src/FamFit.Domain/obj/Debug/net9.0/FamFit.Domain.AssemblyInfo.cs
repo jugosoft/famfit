@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("FamFit.Domain")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+fee91eda66c8168bc609a8677a376222befc31c0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7988ae91938c02e549e6349fe753b783cdf6990e")]
 [assembly: System.Reflection.AssemblyProductAttribute("FamFit.Domain")]
 [assembly: System.Reflection.AssemblyTitleAttribute("FamFit.Domain")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

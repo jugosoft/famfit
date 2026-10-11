@@ -16,14 +16,8 @@ namespace FamFit.WebApi.Endpoints;
 /// </summary>
 public static class AuthEndpoints
 {
-    /// <summary>
-    /// Запрос на вход с email + password.
-    /// </summary>
     public record LoginRequest(string Email, string Password);
 
-    /// <summary>
-    /// Ответ с JWT-токеном.
-    /// </summary>
     public record LoginResponse(
         string Token,
         string TokenType,
@@ -37,13 +31,17 @@ public static class AuthEndpoints
         string Role,
         int StreakCount);
 
+    public record RegisterRequest(string Name, string Email, string Password);
+
+    public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/auth")
             .WithTags("Auth")
             .WithOpenApi();
 
-        // POST /api/auth/login — вход пользователя
+        // POST /api/auth/login
         group.MapPost("/login", async (
             [FromBody] LoginRequest request,
             FamFitDbContext db,
@@ -56,7 +54,7 @@ public static class AuthEndpoints
             if (user is null)
                 return Results.Unauthorized();
 
-            // 2. Проверяем пароль (в реальном проекте — через Application-сервис хеширования)
+            // 2. Проверяем пароль
             var passwordHasher = new PasswordHasher<User>();
             var result = passwordHasher.VerifyHashedPassword(
                 user,
@@ -72,6 +70,11 @@ public static class AuthEndpoints
                 ?? throw new InvalidOperationException("JWT secret not configured.");
             var issuer = jwtSection["Issuer"] ?? "FamFit.WebApi";
             var audience = jwtSection["Audience"] ?? "FamFitClient";
+
+            // Валидация длины секрета (минимум 32 символа для HS256)
+            if (secret.Length < 32)
+                throw new InvalidOperationException(
+                    "JWT secret must be at least 32 characters long.");
 
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
@@ -105,24 +108,34 @@ public static class AuthEndpoints
             return Results.Ok(response);
         })
         .WithSummary("Вход в систему")
-        .WithDescription("Аутентификация пользователя по email и паролю. Возвращает JWT-токен.")
         .Produces<LoginResponse>()
         .Produces(StatusCodes.Status401Unauthorized);
 
-        // POST /api/auth/register — регистрация нового пользователя
+        // POST /api/auth/register
         group.MapPost("/register", async (
             [FromBody] RegisterRequest request,
             FamFitDbContext db) =>
         {
+            // Валидация входных данных
+            if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length < 2)
+                return Results.BadRequest(new { error = "Name must be at least 2 characters." });
+            if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains('@'))
+                return Results.BadRequest(new { error = "Valid email is required." });
+            if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
+                return Results.BadRequest(new { error = "Password must be at least 8 characters." });
+
             // Проверка: email уже занят
             if (await db.Users.AnyAsync(u => u.Email == request.Email.Trim().ToLowerInvariant()))
                 return Results.Conflict(new { error = "Email already registered." });
+
+            // Хеширование пароля через BCrypt (cost factor 12)
+            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password, rounds: 12);
 
             // Создание пользователя (по умолчанию — Member)
             var user = User.Create(
                 request.Name,
                 request.Email,
-                request.Password);
+                hashedPassword);
 
             db.Users.Add(user);
             await db.SaveChangesAsync();
@@ -136,15 +149,75 @@ public static class AuthEndpoints
             });
         })
         .WithSummary("Регистрация нового пользователя")
-        .WithDescription("Создаёт нового пользователя с ролью FamilyMember.")
         .Produces<UserDto>(StatusCodes.Status201Created)
+        .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status409Conflict);
+
+        // PUT /api/auth/change-password — смена пароля (требует авторизации)
+        group.MapPut("/change-password", async (
+            [FromBody] ChangePasswordRequest request,
+            FamFitDbContext db,
+            HttpContext context) =>
+        {
+            var userId = context.GetUserIdFromClaim();
+
+            var user = await db.Users.FindAsync(userId);
+            if (user is null)
+                return Results.NotFound();
+
+            // Проверка текущего пароля
+            var passwordHasher = new PasswordHasher<User>();
+            var result = passwordHasher.VerifyHashedPassword(
+                user,
+                user.PasswordHash,
+                request.CurrentPassword);
+
+            if (result != PasswordVerificationResult.Success)
+                return Results.Unauthorized();
+
+            // Валидация нового пароля
+            if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
+                return Results.BadRequest(new { error = "Password must be at least 8 characters." });
+
+            // Новый пароль не должен совпадать со старым
+            if (request.NewPassword == request.CurrentPassword)
+                return Results.BadRequest(new { error = "New password must be different from current." });
+
+            // Хешируем и сохраняем
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword, rounds: 12);
+            await db.SaveChangesAsync();
+
+            return Results.Ok(new { message = "Password changed successfully." });
+        })
+        .WithSummary("Смена пароля")
+        .RequireAuthorization()
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status401Unauthorized);
+
+        // GET /api/auth/me — текущий пользователь
+        group.MapGet("/me", async (
+            FamFitDbContext db,
+            HttpContext context) =>
+        {
+            var userId = context.GetUserIdFromClaim();
+
+            var user = await db.Users.FindAsync(userId);
+            if (user is null)
+                return Results.NotFound();
+
+            return Results.Ok(new UserDto(
+                user.Id,
+                user.Name,
+                user.Email,
+                user.Role.ToString(),
+                user.StreakCount));
+        })
+        .WithSummary("Получить данные текущего пользователя")
+        .RequireAuthorization()
+        .Produces<UserDto>()
+        .Produces(StatusCodes.Status404NotFound);
 
         return app;
     }
-
-    /// <summary>
-    /// Запрос на регистрацию.
-    /// </summary>
-    public record RegisterRequest(string Name, string Email, string Password);
 }

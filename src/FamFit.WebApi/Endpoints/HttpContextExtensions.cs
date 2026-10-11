@@ -9,7 +9,7 @@ namespace FamFit.WebApi.Endpoints;
 public static class HttpContextExtensions
 {
     /// <summary>
-    /// Извлекает UserId из JWT-claim "sub" (Subject).
+    /// Извлекает UserId из JWT-claim "sub" (Subject) или NameIdentifier.
     /// </summary>
     public static Guid GetUserIdFromClaim(this HttpContext context)
     {
@@ -31,5 +31,20 @@ public static class HttpContextExtensions
             ?? context.User.FindFirstValue("role");
 
         return role == Role.Admin.ToString();
+    }
+
+    /// <summary>
+    /// Требует авторизации и возвращает 401 если не авторизован.
+    /// </summary>
+    public static IResult RequireAuthenticatedUser(this HttpContext context)
+    {
+        if (!context.User.Identity?.IsAuthenticated ?? true)
+            return Results.Unauthorized();
+
+        return context.GetUserIdFromClaim() switch
+        {
+            Guid userId => Results.Ok(userId),
+            _ => Results.Unauthorized()
+        };
     }
 }
