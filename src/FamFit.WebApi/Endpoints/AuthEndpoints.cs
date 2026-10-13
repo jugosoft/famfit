@@ -1,7 +1,9 @@
 using FamFit.Application.Interfaces;
 using FamFit.Domain.Entities;
 using FamFit.Domain.Enums;
+using FamFit.Infrastructure.Data;
 using FamFit.WebApi.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -129,7 +131,7 @@ public static class AuthEndpoints
                 return Results.Conflict(new { error = "Email already registered." });
 
             // Хеширование пароля через BCrypt (cost factor 12)
-            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password, rounds: 12);
+            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password, workFactor: 12);
 
             // Создание пользователя (по умолчанию — Member)
             var user = User.Create(
@@ -184,7 +186,7 @@ public static class AuthEndpoints
                 return Results.BadRequest(new { error = "New password must be different from current." });
 
             // Хешируем и сохраняем
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword, rounds: 12);
+            user.ChangePassword(BCrypt.Net.BCrypt.HashPassword(request.NewPassword, workFactor: 12));
             await db.SaveChangesAsync();
 
             return Results.Ok(new { message = "Password changed successfully." });

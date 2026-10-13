@@ -8,4 +8,4 @@ namespace FamFit.Domain.Entities;
 public abstract record EntityBase<TId>(TId Id)
     where TId : notnull;
 
-public record Entity(T) : EntityBase<Guid>(T);
+public record Entity(Guid Id) : EntityBase<Guid>(Id);

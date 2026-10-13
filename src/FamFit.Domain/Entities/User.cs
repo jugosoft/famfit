@@ -47,4 +47,17 @@ public sealed class User
 
         Role = Role.Member;
     }
+
+    public void IncrementStreak()
+    {
+        StreakCount += 1;
+    }
+
+    public void ChangePassword(string newPasswordHash)
+    {
+        if (string.IsNullOrWhiteSpace(newPasswordHash))
+            throw new ArgumentException("Password hash cannot be empty.", nameof(newPasswordHash));
+
+        PasswordHash = newPasswordHash;
+    }
 }

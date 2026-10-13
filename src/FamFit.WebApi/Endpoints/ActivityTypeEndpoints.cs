@@ -1,3 +1,8 @@
+using FamFit.Application.Commands.ActivityTypes;
+using FamFit.Infrastructure.Data;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+
 namespace FamFit.WebApi.Endpoints;
 
 /// <summary>

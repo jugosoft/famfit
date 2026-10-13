@@ -1,3 +1,11 @@
+using FamFit.Application.Commands.ActivityLogs;
+using FamFit.Application.Commands.ActivityTypes;
+using FamFit.Infrastructure.Data;
+using FamFit.WebApi.Models;
+using MediatR;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
 namespace FamFit.WebApi.Endpoints;
 
 /// <summary>
@@ -77,9 +85,9 @@ public static class ActivityLogEndpoints
         // GET /api/activity-logs — история пользователя (последние N записей)
         group.MapGet("/", async (
             Guid userId,
+            FamFitDbContext db,
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 20,
-            FamFitDbContext db) =>
+            [FromQuery] int pageSize = 20) =>
         {
             var query = db.ActivityLogs
                 .Where(al => al.UserId == userId)

@@ -19,7 +19,7 @@ public static class DbSeeder
     {
         using var scope = serviceProvider.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<FamFitDbContext>();
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<DbSeeder>>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<FamFitDbContext>>();
 
         await dbContext.Database.EnsureCreatedAsync();
 
@@ -50,7 +50,7 @@ public static class DbSeeder
                 ("Бег", UnitType.Time),
                 ("Велосипед", UnitType.Time),
                 ("Скручивания", UnitType.Count),
-                ("Берпи", UnitType.Count)
+                ("Бёрпи", UnitType.Count)
             };
 
             foreach (var (name, unitType) in defaultTypes)

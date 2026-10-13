@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+
 using FamFit.Application.Interfaces;
 using FamFit.Domain.Entities;
 using FamFit.Domain.Enums;

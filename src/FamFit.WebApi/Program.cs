@@ -5,7 +5,10 @@ using FamFit.Infrastructure.Data;
 using FamFit.WebApi.Endpoints;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Security.Claims;
@@ -174,8 +177,6 @@ builder.Services.AddRateLimiter(options =>
     {
         limiterOptions.PermitLimit = 5;
         limiterOptions.Window = TimeSpan.FromMinutes(15);
-        limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        limiterOptions.QueueLimit = 0;
     });
 });
 

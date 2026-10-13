@@ -51,8 +51,12 @@ src/FamFit.Frontend/dist/
 
 ## Environment files (contain secrets!)
 .env
-.env.*
-!env.example
+.env.local
+!.env.example
+!.env.development
+!.env.staging
+!.env.lan
+!.env.production
 
 ## Database
 *.db

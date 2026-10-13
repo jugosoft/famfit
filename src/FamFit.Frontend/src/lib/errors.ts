@@ -1,2 +1,1 @@
-import { ApiError } from '@/lib/http';
-export { ApiError };
+export { ApiError } from '@/lib/http';

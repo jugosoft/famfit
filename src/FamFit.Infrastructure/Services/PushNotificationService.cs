@@ -1,6 +1,8 @@
 using FamFit.Application.Interfaces;
 using FamFit.Infrastructure.Configuration;
 using FamFit.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using WebPush;
 
@@ -47,31 +49,29 @@ public sealed class PushNotificationService : IPushNotificationService, IDisposa
         if (!subscriptions.Any())
             return; // Нет подписок — ничего не отправляем
 
-        // 2. Создаём VAPID-конфигурацию
-        var vapidConfig = new VapidConfig
-        {
-            publicKey = _options.PublicKey!,
-            privateKey = _options.PrivateKey!,
-            subject = $"mailto:{_options.ContactEmail}"
-        };
+        // 2. Создаём VAPID-детали
+        var vapidDetails = new WebPush.VapidDetails(
+            $"mailto:{_options.ContactEmail}",
+            _options.PublicKey!,
+            _options.PrivateKey!);
 
         // 3. Формируем payload с Notification Actions
         var payload = new PushPayload
         {
-            notification = new NotificationPayload
+            Notification = new NotificationPayload
             {
-                title = title,
-                body = body,
-                actions = actions
+                Title = title,
+                Body = body,
+                Actions = actions
                     .Select(a => new ActionPayload
                     {
-                        action = a.Action,
-                        title = a.Title,
-                        icon = a.Icon
+                        Action = a.Action,
+                        Title = a.Title,
+                        Icon = a.Icon
                     })
                     .ToList()
             },
-            data = new Dictionary<string, string>
+            Data = new Dictionary<string, string>
             {
                 { "userId", userId.ToString() },
                 { "timestamp", DateTime.UtcNow.ToString("o") }
@@ -87,19 +87,17 @@ public sealed class PushNotificationService : IPushNotificationService, IDisposa
         {
             try
             {
-                var pushSubscription = new PushSubscriptionData
-                {
-                    Endpoint = sub.Endpoint,
-                    publicKey = sub.P256dh,
-                    auth = sub.Auth
-                };
+                var pushSubscription = new WebPush.PushSubscription(
+                    sub.Endpoint,
+                    sub.P256dh,
+                    sub.Auth);
 
                 pushClient.SendNotificationAsync(
                     pushSubscription,
                     jsonPayload,
-                    vapidConfig).Wait(cancellationToken);
+                    vapidDetails).Wait(cancellationToken);
             }
-            catch (WebPushException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.Gone)
+            catch (WebPushException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Gone)
             {
                 // Подписка истекла — удаляем (логика на уровне Application слоя, но здесь логгируем)
                 // В реальном проекте: вызвать Application Command для удаления подписки

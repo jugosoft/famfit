@@ -39,9 +39,13 @@ public static class DependencyInjection
                 .UseSnakeCaseNamingConvention(); // Конвенция именования таблиц в PostgreSQL
         });
 
+        services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<FamFitDbContext>());
+
         // --- Web Push (VAPID) ---
-        services.Configure<WebPushOptions>(
-            configuration.GetSection("WebPush"));
+        services.Configure<WebPushOptions>(opts =>
+        {
+            configuration.GetSection("WebPush").Bind(opts);
+        });
 
         services.AddSingleton<IPushNotificationService, PushNotificationService>();
 

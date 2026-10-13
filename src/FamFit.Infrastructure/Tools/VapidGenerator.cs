@@ -17,7 +17,7 @@ public static class VapidGenerator
         appsettingsPath ??= "appsettings.json";
 
         // Генерируем VAPID ключи
-        var vapidConfig = VapidConfig.GenerateVapidConfig();
+        var vapidConfig = WebPush.VapidHelper.GenerateVapidKeys();
 
         Console.WriteLine("=== FamFit VAPID Key Generator ===");
         Console.WriteLine();

@@ -41,10 +41,14 @@ public static class HttpContextExtensions
         if (!context.User.Identity?.IsAuthenticated ?? true)
             return Results.Unauthorized();
 
-        return context.GetUserIdFromClaim() switch
+        try
         {
-            Guid userId => Results.Ok(userId),
-            _ => Results.Unauthorized()
-        };
+            var userId = context.GetUserIdFromClaim();
+            return Results.Ok(userId);
+        }
+        catch
+        {
+            return Results.Unauthorized();
+        }
     }
 }

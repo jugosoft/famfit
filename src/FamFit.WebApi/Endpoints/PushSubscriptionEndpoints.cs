@@ -1,3 +1,10 @@
+using FamFit.Application.Commands.ActivityLogs;
+using FamFit.Application.Commands.PushSubscriptions;
+using FamFit.Infrastructure.Data;
+using FamFit.WebApi.Models;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+
 namespace FamFit.WebApi.Endpoints;
 
 /// <summary>

@@ -10,6 +10,12 @@ FamFit/
 ├── .dockerignore
 ├── .gitignore
 ├── README.md
+├── COMMANDS.md                 # Все команды запуска
+├── run-backend.sh              # Запуск бэкенда
+├── run-frontend.sh             # Запуск фронтенда (локально)
+├── run-frontend-env.sh         # Запуск фронтенда с выбором окружения
+├── run-all.sh                  # Запуск всего стека
+├── run-docker.sh               # Запуск через Docker Compose
 └── src/
     ├── FamFit.Domain/          # Ядро: сущности, enum'ы
     ├── FamFit.Application/     # Бизнес-логика: CQRS, MediatR
@@ -37,7 +43,7 @@ FamFit/
 
 ```bash
 # Запуск всего стека (PostgreSQL + Backend + Frontend)
-docker-compose up --build
+./run-docker.sh
 
 # Бэкенд: http://localhost:5000
 # Фронтенд: http://localhost:80
@@ -47,22 +53,18 @@ docker-compose up --build
 ### Вариант 2: Локальная разработка
 
 ```bash
-# 1. Запустите PostgreSQL
-docker run -d --name famfit-db -e POSTGRES_DB=famfit -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16-alpine
+# Терминал 1 — Backend
+./run-backend.sh
 
-# 2. Backend
-cd src/FamFit.WebApi
-dotnet restore
-dotnet run
-
-# 3. Frontend (в другом терминале)
-cd src/FamFit.Frontend
-npm install
-npm run dev
-
-# 4. Генерация типов из OpenAPI (после запуска бэкенда)
-npm run openapi:generate
+# Терминал 2 — Frontend (локально)
+./run-frontend.sh
+# или с выбором окружения:
+./run-frontend-env.sh local    # Backend: localhost:5000
+./run-frontend-env.sh staging  # Backend: 192.168.1.97 (CORS обходится)
+./run-frontend-env.sh lan      # Backend: 192.168.1.97 (Origin rewrite)
 ```
+
+> 📖 Полный список команд: [COMMANDS.md](./COMMANDS.md)
 
 ## 📐 Архитектура
 

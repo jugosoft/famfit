@@ -3,7 +3,10 @@ namespace FamFit.WebApi.Models;
 /// <summary>
 /// Универсальный ответ API.
 /// </summary>
-public record ApiResponse<T>(T? Data, string? Error = null, bool Success => Error is null);
+public record ApiResponse<T>(T? Data, string? Error = null)
+{
+    public bool Success => Error is null;
+}
 
 /// <summary>
 /// Ответ с пагинацией.

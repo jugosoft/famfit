@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+
 using FamFit.Application.Interfaces;
 using FamFit.Domain.Entities;
 using FamFit.Domain.Enums;
@@ -59,7 +61,7 @@ public class LogActivityWithNotificationHandler
         _dbContext.ActivityLogs.Add(activityLog);
 
         // 2. Обновляем стрик
-        user.StreakCount += 1;
+        user.IncrementStreak();
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
