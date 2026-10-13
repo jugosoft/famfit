@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dumbbell, User, Mail, Shield, Loader2, Check, X } from 'lucide-react';
+import { User, Mail, Shield, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -9,12 +9,10 @@ import { Tabs } from '@/components/ui/Tabs';
 import { Progress } from '@/components/ui/Progress';
 import { Alert } from '@/components/ui/Alert';
 import { useAuth } from '@/contexts/AuthContext';
-import { useAuth as useAuthHook } from '@/hooks/useAuth';
 import { toast } from '@/components/ui/Toaster';
 
 export function ProfilePage() {
   const { user } = useAuth();
-  const { login } = useAuthHook();
   const [editName, setEditName] = useState(user?.name ?? '');
   const [editEmail, setEditEmail] = useState(user?.email ?? '');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -168,9 +166,9 @@ export function ProfilePage() {
               <p className="text-5xl font-bold text-primary">{user?.streakCount ?? 0}</p>
               <p className="text-sm text-muted-foreground mt-1">дней подряд</p>
             </div>
-            <Progress value={Math.min(100, (user?.streakCount ?? 0) * 10)} max={100} />
+            <Progress value={Math.min(100, ((user?.streakCount ?? 0) || 0) * 10)} max={100} />
             <p className="text-xs text-muted-foreground text-center">
-              {user?.streakCount >= 7 ? '🔥 Отличная серия! Продолжайте!' : 'Записывайте активность каждый день для серии'}
+              {(user?.streakCount ?? 0) >= 7 ? '🔥 Отличная серия! Продолжайте!' : 'Записывайте активность каждый день для серии'}
             </p>
           </CardContent>
         </Card>

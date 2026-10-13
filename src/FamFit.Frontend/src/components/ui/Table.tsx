@@ -1,7 +1,7 @@
-import { TableHTMLAttributes, forwardRef } from 'react';
+import { HTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
-export function Table({ className, ...props }: TableHTMLAttributes<HTMLTableElement>) {
+export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>) {
   return (
     <div className="relative w-full overflow-auto">
       <table

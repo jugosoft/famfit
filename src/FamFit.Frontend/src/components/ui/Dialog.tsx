@@ -1,12 +1,13 @@
-import { DialogHTMLAttributes, forwardRef, useState } from 'react';
+import { HTMLAttributes } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface DialogProps extends DialogHTMLAttributes<HTMLDivElement> {
+export interface DialogProps extends HTMLAttributes<HTMLDivElement> {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   title?: string;
   description?: string;
+  children?: React.ReactNode;
 }
 
 export function Dialog({

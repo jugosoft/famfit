@@ -1,22 +1,17 @@
 import {
   login as loginApi,
   register as registerApi,
-  logout as logoutApi,
-  getCurrentUser
+  logout as logoutApi
 } from '@/api/client';
-import { useAuthStore } from '@/store/authStore';
+import { useAuth as useAuthContext } from '@/contexts/AuthContext';
 import type { LoginRequest, RegisterRequest } from '@/api/types';
 
+/**
+ * Хук для выполнения действий аутентификации (login, register, logout).
+ * Состояние хранится в AuthContext.
+ */
 export function useAuth() {
-  const { setUser, setLoading, setError, clearAuth } = useAuthStore();
-
-  // Initialize auth state from localStorage on mount
-  if (typeof window !== 'undefined') {
-    const user = getCurrentUser();
-    if (user) {
-      setUser(user);
-    }
-  }
+  const { setUser, setLoading, setError, clearAuth } = useAuthContext();
 
   const login = async (data: LoginRequest) => {
     setLoading(true);
@@ -60,10 +55,6 @@ export function useAuth() {
   return {
     login,
     register,
-    logout,
-    isAuthenticated: useAuthStore.getState().isAuthenticated,
-    user: useAuthStore.getState().user,
-    isLoading: useAuthStore.getState().isLoading,
-    error: useAuthStore.getState().error
+    logout
   };
 }

@@ -36,8 +36,8 @@ export function Toaster() {
   }, []);
 
   const handleRemove = useCallback((e: Event) => {
-    const { id } = e as CustomEvent<{ id: string }>;
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+    const { detail } = e as CustomEvent<{ id: string }>;
+    setToasts((prev) => prev.filter((t) => t.id !== detail.id));
   }, []);
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { http, ApiError } from '@/lib/http';
+import { http } from '@/lib/http';
 import type {
   LoginRequest,
   LoginResponse,

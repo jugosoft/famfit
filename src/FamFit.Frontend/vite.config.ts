@@ -38,7 +38,7 @@ export default defineConfig(({ mode }) => {
           ]
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,scss}'],
           runtimeCaching: [
             {
               urlPattern: /\/api\/.*/i,
@@ -66,8 +66,14 @@ export default defineConfig(({ mode }) => {
         '@/hooks': resolve(__dirname, './src/hooks'),
         '@/lib': resolve(__dirname, './src/lib'),
         '@/pages': resolve(__dirname, './src/pages'),
-        '@/store': resolve(__dirname, './src/store'),
         '@/types': resolve(__dirname, './src/types')
+      }
+    },
+    css: {
+      preprocessorOptions: {
+        scss: {
+          // Автоматический импорт globals.scss если нужен
+        }
       }
     },
     server: {

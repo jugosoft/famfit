@@ -1,8 +1,8 @@
-import { DropdownMenuHTMLAttributes, forwardRef, useState } from 'react';
-import { MoreVertical, Check, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
+import { MoreVertical, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface DropdownMenuItem {
+export interface DropdownMenuItem {
   label: string;
   icon?: React.ReactNode;
   onClick: () => void;
@@ -10,16 +10,17 @@ interface DropdownMenuItem {
   separator?: boolean;
 }
 
-interface DropdownMenuProps {
+export interface DropdownMenuProps {
   items: DropdownMenuItem[];
   trigger?: React.ReactNode;
+  className?: string;
 }
 
-export function DropdownMenu({ items, trigger }: DropdownMenuMenu) {
+export function DropdownMenu({ items, trigger, className }: DropdownMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="relative inline-block">
+    <div className={cn('relative inline-block', className)}>
       <button
         className={cn(
           'rounded p-1 hover:bg-accent transition-colors',

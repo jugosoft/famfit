@@ -1,11 +1,15 @@
-import { SeparatorHTMLAttributes, forwardRef } from 'react';
+import { HTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
+
+export interface SeparatorProps extends HTMLAttributes<HTMLHRElement> {
+  orientation?: 'horizontal' | 'vertical';
+}
 
 export function Separator({
   className,
   orientation = 'horizontal',
   ...props
-}: SeparatorHTMLAttributes<HTMLHRElement> & { orientation?: 'horizontal' | 'vertical' }) {
+}: SeparatorProps) {
   return (
     <hr
       className={cn(

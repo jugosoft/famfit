@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
 import { Dumbbell, TrendingUp, Calendar, Award, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { StatCard } from '@/components/ui/StatCard';
@@ -15,7 +14,7 @@ import { ru } from 'date-fns/locale';
 export function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { data: activityTypes, isLoading: typesLoading } = useActivityTypes();
+  const { data: activityTypes } = useActivityTypes();
   const { data: logs, isLoading: logsLoading } = useActivityLogs(user?.id ?? '', 1, 5);
 
   const stats = [
@@ -147,9 +146,9 @@ export function DashboardPage() {
                 Записать первую тренировку
               </Button>
             </div>
-          ) : (
+          ) : logs ? (
             <div className="space-y-3">
-              {logs?.items.map((log) => (
+              {logs.items.map((log) => (
                 <div key={log.id} className="flex items-center justify-between py-2 border-b last:border-0">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
@@ -173,7 +172,7 @@ export function DashboardPage() {
                 </div>
               ))}
             </div>
-          )}
+          ) : null}
         </CardContent>
       </Card>
     </div>

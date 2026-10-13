@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Dumbbell, Plus, Edit2, Trash2, Check, X, Loader2 } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Plus, Edit2, Trash2, X, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -66,7 +66,7 @@ export function AdminPage() {
     queryClient.invalidateQueries({ queryKey: ['admin-activity-types'] });
   }
 
-  function handleDelete(id: string) {
+  function handleDelete() {
     if (!confirm('Удалить этот тип активности?')) return;
     // In production: call API
     toast.success('Тип удалён');
@@ -148,7 +148,7 @@ export function AdminPage() {
                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(item)}>
                           <Edit2 className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}>
+                        <Button variant="ghost" size="icon" onClick={handleDelete}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -177,15 +177,17 @@ export function AdminPage() {
             maxLength={100}
           />
 
-          <Select
-            label="Единица измерения"
-            items={[
-              { value: 'Count', label: 'Штуки (повторения, подходы)' },
-              { value: 'Time', label: 'Минуты (время)' }
-            ]}
-            value={formUnitType}
-            onValueChange={(v) => setFormUnitType(v as 'Count' | 'Time')}
-          />
+          <div>
+            <label className="text-sm font-medium leading-none">Единица измерения</label>
+            <Select
+              items={[
+                { value: 'Count', label: 'Штуки (повторения, подходы)' },
+                { value: 'Time', label: 'Минуты (время)' }
+              ]}
+              value={formUnitType}
+              onValueChange={(v) => setFormUnitType(v as 'Count' | 'Time')}
+            />
+          </div>
 
           <div className="flex gap-3 justify-end">
             <Button variant="outline" onClick={() => setShowDialog(false)}>

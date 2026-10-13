@@ -12,7 +12,7 @@ import {
   deletePushSubscription,
   getMe
 } from '@/api/client';
-import type { ActivityTypeDto, ActivityLogDto, PagedResponse } from '@/api/types';
+import { ApiError } from '@/lib/errors';
 
 // ==================== Auth Queries ====================
 
@@ -21,9 +21,9 @@ export function useCurrentUser() {
     queryKey: ['auth', 'me'],
     queryFn: getMe,
     staleTime: 1000 * 60 * 5,
-    retry: (failCount: number, error: Error) => {
+    retry: (_failCount, error: unknown) => {
       // Не ретраим при 401
-      return !(error instanceof ApiError && (error as unknown as { status: number }).status === 401);
+      return !(error instanceof ApiError);
     }
   });
 }

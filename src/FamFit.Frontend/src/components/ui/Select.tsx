@@ -1,13 +1,13 @@
-import { SelectHTMLAttributes, forwardRef, useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { HTMLAttributes } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface SelectItem {
+export interface SelectItem {
   value: string;
   label: string;
 }
 
-interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
+export interface SelectProps extends Omit<HTMLAttributes<HTMLSelectElement>, 'value' | 'onChange'> {
   items?: SelectItem[];
   placeholder?: string;
   value?: string;

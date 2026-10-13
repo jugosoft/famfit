@@ -12,6 +12,19 @@ echo "  FamFit — Запуск всего стека"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
+# --- Убиваем предыдущий процесс, использующий порт 5000 ---
+echo "🔍 Проверка предыдущих процессов на порту 5000..."
+BACKEND_PID_EXISTING=$(netstat -ano 2>/dev/null | grep ":5000 " | grep "LISTENING" | awk '{print $5}' | head -n 1)
+if [ -n "$BACKEND_PID_EXISTING" ] && [ "$BACKEND_PID_EXISTING" != "0" ]; then
+  echo "⚠️  Найден процесс на порту 5000 (PID: $BACKEND_PID_EXISTING), останавливаю..."
+  taskkill //PID $BACKEND_PID_EXISTING //F 2>/dev/null
+  sleep 1
+  echo "✅ Процесс остановлен"
+else
+  echo "✅ Свободно"
+fi
+echo ""
+
 # --- Backend в фоновом процессе ---
 echo "🚀 Запуск Backend (фоновый процесс)..."
 echo "   Бэкенд: http://localhost:5000"

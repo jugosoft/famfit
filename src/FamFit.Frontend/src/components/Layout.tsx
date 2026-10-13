@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useLocation, type ReactNode } from 'react-router-dom';
+import { ReactNode, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import {
   Dumbbell,
   LayoutDashboard,
@@ -13,7 +13,6 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/Avatar';
-import { Separator } from '@/components/ui/Separator';
 
 interface NavItem {
   to: string;

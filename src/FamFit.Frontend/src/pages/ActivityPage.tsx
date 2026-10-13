@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Dumbbell, Loader2, CheckCircle2, Bell } from 'lucide-react';
+import { Dumbbell, CheckCircle2, Bell } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -10,7 +9,6 @@ import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Pagination } from '@/components/ui/Pagination';
-import { Alert } from '@/components/ui/Alert';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActivityTypes, useActivityLogs, useLogActivity, useLogActivityWithNotification } from '@/hooks/useQueries';
 import { toast } from '@/components/ui/Toaster';
@@ -21,7 +19,7 @@ export function ActivityPage() {
   const [value, setValue] = useState('');
   const [page, setPage] = useState(1);
 
-  const { data: activityTypes, isLoading: typesLoading } = useActivityTypes();
+  const { data: activityTypes } = useActivityTypes();
   const { data: logs, isLoading: logsLoading, refetch } = useActivityLogs(user?.id ?? '', page, 10);
   const logMutation = useLogActivity();
   const logWithNotificationMutation = useLogActivityWithNotification();
@@ -98,28 +96,31 @@ export function ActivityPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            <Select
-              label="Тип активности"
-              placeholder="Выберите тип..."
-              items={activityTypes?.map((t) => ({
-                value: t.id,
-                label: `${t.name} (${t.unitType === 'Count' ? 'шт.' : 'мин.'})`
-              }))}
-              value={selectedType}
-              onValueChange={setSelectedType}
-              disabled={typesLoading}
-            />
+            <div>
+              <label className="text-sm font-medium leading-none">Тип активности</label>
+              <Select
+                placeholder="Выберите тип..."
+                items={activityTypes?.map((t) => ({
+                  value: t.id,
+                  label: `${t.name} (${t.unitType === 'Count' ? 'шт.' : 'мин.'})`
+                }))}
+                value={selectedType}
+                onValueChange={setSelectedType}
+              />
+            </div>
 
-            <Input
-              label="Значение"
-              type="number"
-              placeholder={selectedTypeData?.unitType === 'Count' ? 'Количество (шт.)' : 'Минуты'}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              min="0.1"
-              step="0.1"
-              suffix={selectedTypeData ? <span className="text-muted-foreground">{selectedTypeData.unitType === 'Count' ? 'шт.' : 'мин.'}</span> : undefined}
-            />
+            <div>
+              <label className="text-sm font-medium leading-none">Значение</label>
+              <Input
+                type="number"
+                placeholder={selectedTypeData?.unitType === 'Count' ? 'Количество (шт.)' : 'Минуты'}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                min="0.1"
+                step="0.1"
+                suffix={selectedTypeData ? <span className="text-muted-foreground">{selectedTypeData.unitType === 'Count' ? 'шт.' : 'мин.'}</span> : undefined}
+              />
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
@@ -174,7 +175,7 @@ export function ActivityPage() {
                 </Button>
               }
             />
-          ) : (
+          ) : logs ? (
             <div className="space-y-2">
               {logs.items.map((log) => (
                 <div
@@ -201,7 +202,7 @@ export function ActivityPage() {
                 </div>
               ))}
             </div>
-          )}
+          ) : null}
 
           {/* Pagination */}
           {logs && logs.totalPages > 1 && (

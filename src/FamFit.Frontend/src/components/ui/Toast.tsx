@@ -1,7 +1,7 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
-interface ToastProps {
+export interface ToastProps {
   id: string;
   title?: string;
   description?: string;

@@ -1,10 +1,10 @@
-import { AvatarHTMLAttributes, forwardRef } from 'react';
 import { cn } from '@/lib/utils';
 
-interface AvatarProps extends AvatarHTMLAttributes<HTMLDivElement> {
+export interface AvatarProps {
   src?: string;
   fallback?: string;
   size?: 'sm' | 'md' | 'lg';
+  className?: string;
 }
 
 export function Avatar({
@@ -12,7 +12,6 @@ export function Avatar({
   src,
   fallback = '?',
   size = 'md',
-  ...props
 }: AvatarProps) {
   const sizeClasses = {
     sm: 'h-8 w-8 text-xs',
@@ -28,7 +27,6 @@ export function Avatar({
           sizeClasses[size],
           className
         )}
-        {...props}
       >
         <img src={src} alt="" className="aspect-square h-full w-full object-cover" />
       </div>
@@ -42,7 +40,6 @@ export function Avatar({
         sizeClasses[size],
         className
       )}
-      {...props}
     >
       {fallback}
     </div>

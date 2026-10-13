@@ -1,15 +1,15 @@
-import { TabsHTMLAttributes, forwardRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 
-interface TabItem {
+export interface TabItem {
   value: string;
   label: string;
 }
 
-interface TabsProps extends TabsHTMLAttributes<HTMLDivElement> {
+export interface TabsProps {
   items: TabItem[];
   value?: string;
   onValueChange?: (value: string) => void;
+  className?: string;
 }
 
 export function Tabs({ items, value, onValueChange, className }: TabsProps) {

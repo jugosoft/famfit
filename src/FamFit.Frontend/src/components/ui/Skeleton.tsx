@@ -1,16 +1,16 @@
-import { SkeletonHTMLAttributes, forwardRef } from 'react';
 import { cn } from '@/lib/utils';
 
-interface SkeletonProps extends SkeletonHTMLAttributes<HTMLDivElement> {}
+export interface SkeletonProps {
+  className?: string;
+}
 
-export function Skeleton({ className, ...props }: SkeletonProps) {
+export function Skeleton({ className }: SkeletonProps) {
   return (
     <div
       className={cn(
         'animate-pulse rounded-md bg-muted',
         className
       )}
-      {...props}
     />
   );
 }

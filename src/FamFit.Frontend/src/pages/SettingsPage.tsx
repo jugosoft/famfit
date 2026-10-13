@@ -1,18 +1,18 @@
 import { useState } from 'react';
-import { LogOut, Bell, Moon, Sun, Languages, Shield, Trash2, Loader2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
+import { LogOut, Bell, Moon, Sun, Shield, Trash2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { Dialog } from '@/components/ui/Dialog';
 import { Badge } from '@/components/ui/Badge';
 import { Separator } from '@/components/ui/Separator';
-import { useAuth } from '@/contexts/AuthContext';
-import { useAuth as useAuthHook } from '@/hooks/useAuth';
+import { useAuth as useAuthContext } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/components/ui/Toaster';
 
 export function SettingsPage() {
-  const { user } = useAuth();
-  const { logout } = useAuthHook();
+  const { user } = useAuthContext();
+  const { logout } = useAuth();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [notifications, setNotifications] = useState(true);
@@ -69,7 +69,9 @@ export function SettingsPage() {
               <p className="font-medium">Язык</p>
               <p className="text-sm text-muted-foreground">Выберите язык интерфейса</p>
             </div>
-            <Badge variant="secondary">Русский</Badge>
+            <Badge variant="secondary">
+              Русский
+            </Badge>
           </div>
         </CardContent>
       </Card>
@@ -124,7 +126,7 @@ export function SettingsPage() {
               </p>
             </div>
             <Badge variant={user?.role === 'Admin' ? 'default' : 'secondary'}>
-              {user?.role}
+              {user?.role ?? ''}
             </Badge>
           </div>
 

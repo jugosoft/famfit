@@ -4,7 +4,7 @@ import { Dumbbell, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Alert } from '@/components/ui/Alert';
+import { useAuth as useAuthContext } from '@/contexts/AuthContext';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/components/ui/Toaster';
 
@@ -14,7 +14,8 @@ export function LoginPage() {
   const [name, setName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
-  const { login, register, isLoading } = useAuth();
+  const { login, register } = useAuth();
+  const { isLoading } = useAuthContext();
   const navigate = useNavigate();
 
   async function handleSubmit(e: FormEvent) {
