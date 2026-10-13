@@ -6,7 +6,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig(({ mode }) => {
   // Загружаем .env файлы
   const env = loadEnv(mode, process.cwd(), '');
-  
+
   // Определяем target бэкенда из переменной окружения
   const backendTarget = env.VITE_BACKEND_TARGET || 'http://localhost:5000';
 
