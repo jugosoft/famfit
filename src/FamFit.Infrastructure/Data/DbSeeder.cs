@@ -30,7 +30,7 @@ public static class DbSeeder
             var admin = User.Create(
                 "Admin",
                 "admin@famfit.local",
-                "$2a$11$WpIR7diSj61PGuDaXJnE4eJmYlBz.a2fPxqeMflMJlZzd7p0k5cGm", // changeme123
+                "$2a$12$uZpZrAaQmGPPc45zcFYrgeg5SUyRQa/oI4fbehk93KSbZarTHAGrC", // changeme123
                 Role.Admin);
 
             dbContext.Users.Add(admin);

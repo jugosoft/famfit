@@ -82,20 +82,8 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/api': {
           target: backendTarget,
-          changeOrigin: true, // Изменяет Origin заголовок на target (обход CORS)
-          secure: false,      // Игнорирует невалидные SSL-сертификаты
-          // Копируем заголовки для аутентификации
-          headers: {
-            'Origin': backendTarget
-          },
-          // Переопределяем Host заголовок
-          rewrite: (path) => path,
-          configure: (proxy) => {
-            proxy.on('proxyReq', (proxyReq, req) => {
-              // Копируем Origin заголовок для обхода CORS
-              proxyReq.setHeader('Origin', backendTarget);
-            });
-          }
+          changeOrigin: true,
+          secure: false,
         }
       }
     },

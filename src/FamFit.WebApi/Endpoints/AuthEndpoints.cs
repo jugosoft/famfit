@@ -3,7 +3,6 @@ using FamFit.Domain.Entities;
 using FamFit.Domain.Enums;
 using FamFit.Infrastructure.Data;
 using FamFit.WebApi.Models;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -56,14 +55,8 @@ public static class AuthEndpoints
             if (user is null)
                 return Results.Unauthorized();
 
-            // 2. Проверяем пароль
-            var passwordHasher = new PasswordHasher<User>();
-            var result = passwordHasher.VerifyHashedPassword(
-                user,
-                user.PasswordHash,
-                request.Password);
-
-            if (result != PasswordVerificationResult.Success)
+            // 2. Проверяем пароль через BCrypt
+            if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
                 return Results.Unauthorized();
 
             // 3. Генерируем JWT-токен
@@ -167,14 +160,8 @@ public static class AuthEndpoints
             if (user is null)
                 return Results.NotFound();
 
-            // Проверка текущего пароля
-            var passwordHasher = new PasswordHasher<User>();
-            var result = passwordHasher.VerifyHashedPassword(
-                user,
-                user.PasswordHash,
-                request.CurrentPassword);
-
-            if (result != PasswordVerificationResult.Success)
+            // Проверка текущего пароля через BCrypt
+            if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
                 return Results.Unauthorized();
 
             // Валидация нового пароля

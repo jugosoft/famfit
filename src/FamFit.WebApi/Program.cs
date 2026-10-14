@@ -213,14 +213,6 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors("FamFitPWA");
 
-// Rate limiting for auth endpoints
-app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/api/auth"), appBuilder =>
-{
-    appBuilder.UseRouting();
-    appBuilder.UseAuthorization();
-    appBuilder.UseRateLimiter();
-});
-
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
