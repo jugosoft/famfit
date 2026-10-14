@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
 # ============================================
-# FamFit — Запуск Frontend (локально)
+# FamFit - Run Frontend (local)
 # ============================================
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "=================================================="
 echo "  FamFit Frontend"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "=================================================="
 
 cd "$ROOT_DIR/src/FamFit.Frontend"
 
 echo ""
-echo "📦 Установка зависимостей..."
+echo "[1/2] Installing dependencies..."
 npm install
 
 echo ""
-echo "🚀 Запуск dev-сервера..."
-echo "   Фронтенд: http://localhost:5173"
-echo "   Прокси к бэкенду: http://localhost:5000/api"
+echo "[2/2] Starting dev server..."
+echo "   Frontend: http://localhost:5173"
+echo "   Proxy:    http://localhost:5000/api"
 echo ""
 
 npm run dev

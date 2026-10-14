@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit2, Trash2, X, Check } from 'lucide-react';
+import { Plus, Trash2, X, Check, Dumbbell } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -12,33 +12,67 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Alert } from '@/components/ui/Alert';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/components/ui/Toaster';
+import { getActivityTypes, createActivityType, deactivateActivityType, updateActivityTypeAttributes } from '@/api/client';
 
-// Types (normally from API)
+// Types
 interface ActivityTypeItem {
   id: string;
   name: string;
   unitType: 'Count' | 'Time';
-  isActive: boolean;
+  isActive?: boolean;
+  attributes?: {
+    sets?: number | null;
+    reps?: number | null;
+    weight?: number | null;
+  };
 }
 
 export function AdminPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showDialog, setShowDialog] = useState(false);
+  const [showAttributesDialog, setShowAttributesDialog] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [attributesId, setAttributesId] = useState<string | null>(null);
   const [formName, setFormName] = useState('');
   const [formUnitType, setFormUnitType] = useState<'Count' | 'Time'>('Count');
+  const [formSets, setFormSets] = useState<string>('');
+  const [formReps, setFormReps] = useState<string>('');
+  const [formWeight, setFormWeight] = useState<string>('');
 
-  // Mock data — replace with API call
   const { data: activityTypes = [], isLoading } = useQuery({
-    queryKey: ['admin-activity-types'],
-    queryFn: async () => {
-      // In production: return await getActivityTypesAdmin();
-      return [] as ActivityTypeItem[];
-    }
+    queryKey: ['activity-types'],
+    queryFn: getActivityTypes
   });
 
   const isEditing = editingId !== null;
+  const isSettingAttributes = attributesId !== null;
+
+  // Sync form with selected item
+  useEffect(() => {
+    if (editingId) {
+      const item = activityTypes.find(t => t.id === editingId);
+      if (item) {
+        setFormName(item.name);
+        setFormUnitType(item.unitType);
+      }
+    }
+  }, [editingId, activityTypes]);
+
+  useEffect(() => {
+    if (attributesId) {
+      const item = activityTypes.find(t => t.id === attributesId);
+      if (item?.attributes) {
+        setFormSets(item.attributes.sets?.toString() || '');
+        setFormReps(item.attributes.reps?.toString() || '');
+        setFormWeight(item.attributes.weight?.toString() || '');
+      } else {
+        setFormSets('');
+        setFormReps('');
+        setFormWeight('');
+      }
+    }
+  }, [attributesId, activityTypes]);
 
   function openCreateDialog() {
     setEditingId(null);
@@ -47,30 +81,63 @@ export function AdminPage() {
     setShowDialog(true);
   }
 
-  function openEditDialog(item: ActivityTypeItem) {
-    setEditingId(item.id);
-    setFormName(item.name);
-    setFormUnitType(item.unitType);
-    setShowDialog(true);
+  function openAttributesDialog(item: ActivityTypeItem) {
+    setAttributesId(item.id);
+    setShowAttributesDialog(true);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!formName.trim()) {
       toast.error('Ошибка', 'Введите название типа активности');
       return;
     }
 
-    // In production: call API
-    toast.success(isEditing ? 'Тип обновлён' : 'Тип создан');
-    setShowDialog(false);
-    queryClient.invalidateQueries({ queryKey: ['admin-activity-types'] });
+    try {
+      await createActivityType({
+        name: formName.trim(),
+        unitType: formUnitType
+      });
+
+      toast.success('Тип создан');
+      setShowDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['activity-types'] });
+    } catch (error: any) {
+      toast.error('Ошибка', error.message || 'Не удалось создать тип');
+    }
   }
 
-  function handleDelete() {
-    if (!confirm('Удалить этот тип активности?')) return;
-    // In production: call API
-    toast.success('Тип удалён');
-    queryClient.invalidateQueries({ queryKey: ['admin-activity-types'] });
+  async function handleSaveAttributes() {
+    if (!attributesId) return;
+
+    try {
+      await updateActivityTypeAttributes(attributesId, {
+        sets: formSets ? parseInt(formSets) : null,
+        reps: formReps ? parseInt(formReps) : null,
+        weight: formWeight ? parseInt(formWeight) : null
+      });
+
+      toast.success('Атрибуты обновлены');
+      setShowAttributesDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['activity-types'] });
+    } catch (error: any) {
+      toast.error('Ошибка', error.message || 'Не удалось обновить атрибуты');
+    }
+  }
+
+  async function handleDelete(id: string, name: string) {
+    if (!confirm(`Удалить тип "${name}"?`)) return;
+
+    try {
+      await deactivateActivityType(id);
+      toast.success('Тип деактивирован');
+      queryClient.invalidateQueries({ queryKey: ['activity-types'] });
+    } catch (error: any) {
+      toast.error('Ошибка', error.message || 'Не удалось деактивировать тип');
+    }
+  }
+
+  function clearField(setter: (v: string) => void) {
+    setter('');
   }
 
   return (
@@ -125,6 +192,7 @@ export function AdminPage() {
                 <TableRow>
                   <TableHead>Название</TableHead>
                   <TableHead>Единица</TableHead>
+                  <TableHead>Атрибуты</TableHead>
                   <TableHead>Статус</TableHead>
                   <TableHead className="text-right">Действия</TableHead>
                 </TableRow>
@@ -139,16 +207,39 @@ export function AdminPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={item.isActive ? 'default' : 'secondary'}>
-                        {item.isActive ? 'Активен' : 'Неактивен'}
+                      {item.attributes ? (
+                        <div className="text-xs space-y-1">
+                          {item.attributes.sets && <div>Подходы: {item.attributes.sets}</div>}
+                          {item.attributes.reps && <div>Повторения: {item.attributes.reps}</div>}
+                          {item.attributes.weight && <div>Вес: {item.attributes.weight} кг</div>}
+                          {!item.attributes.sets && !item.attributes.reps && !item.attributes.weight && (
+                            <span className="text-muted-foreground">Не заданы</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">Не заданы</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={item.isActive !== false ? 'default' : 'secondary'}>
+                        {item.isActive !== false ? 'Активен' : 'Неактивен'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(item)}>
-                          <Edit2 className="h-4 w-4" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openAttributesDialog(item)}
+                          title="Редактировать атрибуты"
+                        >
+                          <Dumbbell className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={handleDelete}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(item.id, item.name)}
+                        >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -161,7 +252,7 @@ export function AdminPage() {
         </CardContent>
       </Card>
 
-      {/* Create/Edit Dialog */}
+      {/* Create Dialog */}
       <Dialog
         open={showDialog}
         onOpenChange={setShowDialog}
@@ -197,6 +288,98 @@ export function AdminPage() {
             <Button onClick={handleSave}>
               <Check className="mr-2 h-4 w-4" />
               {isEditing ? 'Сохранить' : 'Создать'}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Attributes Dialog */}
+      <Dialog
+        open={showAttributesDialog}
+        onOpenChange={setShowAttributesDialog}
+        title="Атрибуты активности"
+        description={isSettingAttributes ? 'Настройте подходы, повторения и вес' : ''}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Укажите значения для этой активности. Оставьте пустыми, если не применяется.
+          </p>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="relative">
+              <label className="text-sm font-medium leading-none">Подходы</label>
+              <div className="flex gap-2 mt-1">
+                <Input
+                  type="number"
+                  placeholder="3"
+                  value={formSets}
+                  onChange={(e) => setFormSets(e.target.value)}
+                  min="0"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => clearField(setFormSets)}
+                  className="shrink-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="relative">
+              <label className="text-sm font-medium leading-none">Повторения</label>
+              <div className="flex gap-2 mt-1">
+                <Input
+                  type="number"
+                  placeholder="15"
+                  value={formReps}
+                  onChange={(e) => setFormReps(e.target.value)}
+                  min="0"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => clearField(setFormReps)}
+                  className="shrink-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="relative">
+              <label className="text-sm font-medium leading-none">
+                Вес (кг)
+              </label>
+              <div className="flex gap-2 mt-1">
+                <Input
+                  type="number"
+                  placeholder="10"
+                  value={formWeight}
+                  onChange={(e) => setFormWeight(e.target.value)}
+                  min="0"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => clearField(setFormWeight)}
+                  className="shrink-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3 justify-end">
+            <Button variant="outline" onClick={() => setShowAttributesDialog(false)}>
+              <X className="mr-2 h-4 w-4" />
+              Отмена
+            </Button>
+            <Button onClick={handleSaveAttributes}>
+              <Check className="mr-2 h-4 w-4" />
+              Сохранить
             </Button>
           </div>
         </div>

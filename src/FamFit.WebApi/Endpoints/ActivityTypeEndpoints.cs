@@ -1,7 +1,11 @@
 using FamFit.Application.Commands.ActivityTypes;
+using FamFit.Application.Commands.ActivityTypeAttributes;
 using FamFit.Infrastructure.Data;
+using FamFit.WebApi.Models;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using UpdateActivityTypeAttributesRequest = FamFit.WebApi.Models.UpdateActivityTypeAttributesRequest;
 
 namespace FamFit.WebApi.Endpoints;
 
@@ -17,15 +21,21 @@ public static class ActivityTypeEndpoints
             .WithOpenApi();
 
         // GET /api/activity-types — все активные типы (публичный)
+        [AllowAnonymous]
         group.MapGet("/", async (FamFitDbContext db) =>
         {
-            var types = await db.ActivityTypes
                 .Where(at => at.IsActive)
                 .Select(at => new
                 {
                     at.Id,
                     at.Name,
-                    at.UnitType
+                    at.UnitType,
+                    Attributes = at.ActivityTypeAttributes != null ? new
+                    {
+                        at.ActivityTypeAttributes.Sets,
+                        at.ActivityTypeAttributes.Reps,
+                        at.ActivityTypeAttributes.Weight
+                    } : (object?)null
                 })
                 .OrderBy(at => at.Name)
                 .ToListAsync();
@@ -78,6 +88,27 @@ public static class ActivityTypeEndpoints
         })
         .WithSummary("Деактивировать тип активности")
         .WithDescription("Делает тип активности неактивным. Доступно только для FamilyAdmin.")
+        .RequireAuthorization("Admin")
+        .Produces<object>()
+        .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status403Forbidden);
+
+        // PUT /api/activity-types/{id}/attributes — обновить атрибуты (только Admin)
+        group.MapPut("/{id:guid}/attributes", async (
+            Guid id,
+            UpdateActivityTypeAttributesRequest request,
+            IMediator mediator) =>
+        {
+            await mediator.Send(new UpdateActivityTypeAttributesCommand(
+                id,
+                request.Sets,
+                request.Reps,
+                request.Weight));
+
+            return Results.Ok(new { activityTypeId = id, updated = true });
+        })
+        .WithSummary("Обновить атрибуты типа активности")
+        .WithDescription("Устанавливает подходы, повторения и вес для типа активности.")
         .RequireAuthorization("Admin")
         .Produces<object>()
         .Produces(StatusCodes.Status404NotFound)

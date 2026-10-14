@@ -17,7 +17,12 @@ public sealed class FamFitDbContext : DbContext, IApplicationDbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<ActivityType> ActivityTypes => Set<ActivityType>();
+    public DbSet<ActivityTypeAttributes> ActivityTypeAttributes => Set<ActivityTypeAttributes>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
+    public DbSet<Workout> Workouts => Set<Workout>();
+    public DbSet<WorkoutEntry> WorkoutEntries => Set<WorkoutEntry>();
+    public DbSet<WorkoutTemplate> WorkoutTemplates => Set<WorkoutTemplate>();
+    public DbSet<WorkoutTemplateItem> WorkoutTemplateItems => Set<WorkoutTemplateItem>();
     public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -143,6 +148,200 @@ public sealed class FamFitDbContext : DbContext, IApplicationDbContext
 
             entity.HasIndex(e => new { e.UserId, e.Timestamp })
                 .HasDatabaseName("ix_activity_logs_user_timestamp");
+        });
+
+        // --- ActivityTypeAttributes ---
+        modelBuilder.Entity<ActivityTypeAttributes>(entity =>
+        {
+            entity.ToTable("activity_type_attributes");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                .HasColumnType("uuid")
+                .HasDefaultValueSql("gen_random_uuid()");
+
+            entity.Property(e => e.ActivityTypeId)
+                .HasColumnType("uuid")
+                .HasColumnName("activity_type_id");
+
+            entity.Property(e => e.Sets)
+                .HasColumnName("sets");
+
+            entity.Property(e => e.Reps)
+                .HasColumnName("reps");
+
+            entity.Property(e => e.Weight)
+                .HasColumnName("weight");
+
+            entity.HasOne(e => e.ActivityType)
+                .WithOne(e => e.ActivityTypeAttributes)
+                .HasForeignKey<ActivityTypeAttributes>(e => e.ActivityTypeId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_activity_type_attributes_activity_types");
+
+            entity.HasIndex(e => e.ActivityTypeId)
+                .IsUnique()
+                .HasDatabaseName("uq_activity_type_attributes_activity_type");
+        });
+
+        // --- Workout ---
+        modelBuilder.Entity<Workout>(entity =>
+        {
+            entity.ToTable("workouts");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                .HasColumnType("uuid")
+                .HasDefaultValueSql("gen_random_uuid()");
+
+            entity.Property(e => e.UserId)
+                .HasColumnType("uuid")
+                .HasColumnName("user_id");
+
+            entity.Property(e => e.Name)
+                .HasMaxLength(200)
+                .HasColumnName("name");
+
+            entity.Property(e => e.StartTime)
+                .IsRequired()
+                .HasColumnType("timestamptz")
+                .HasColumnName("start_time");
+
+            entity.Property(e => e.EndTime)
+                .HasColumnType("timestamptz")
+                .HasColumnName("end_time");
+
+            entity.Property(e => e.IsCompleted)
+                .IsRequired()
+                .HasColumnName("is_completed");
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_workouts_users");
+
+            entity.HasIndex(e => new { e.UserId, e.StartTime })
+                .HasDatabaseName("ix_workouts_user_start_time");
+        });
+
+        // --- WorkoutEntry ---
+        modelBuilder.Entity<WorkoutEntry>(entity =>
+        {
+            entity.ToTable("workout_entries");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                .HasColumnType("uuid")
+                .HasDefaultValueSql("gen_random_uuid()");
+
+            entity.Property(e => e.WorkoutId)
+                .HasColumnType("uuid")
+                .HasColumnName("workout_id");
+
+            entity.Property(e => e.ActivityTypeId)
+                .HasColumnType("uuid")
+                .HasColumnName("activity_type_id");
+
+            entity.Property(e => e.Sets)
+                .HasColumnName("sets");
+
+            entity.Property(e => e.Reps)
+                .HasColumnName("reps");
+
+            entity.Property(e => e.Weight)
+                .HasColumnName("weight");
+
+            entity.HasOne(e => e.Workout)
+                .WithMany(e => e.Entries)
+                .HasForeignKey(e => e.WorkoutId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_workout_entries_workouts");
+
+            entity.HasOne(e => e.ActivityType)
+                .WithMany()
+                .HasForeignKey(e => e.ActivityTypeId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_workout_entries_activity_types");
+        });
+
+        // --- WorkoutTemplate ---
+        modelBuilder.Entity<WorkoutTemplate>(entity =>
+        {
+            entity.ToTable("workout_templates");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                .HasColumnType("uuid")
+                .HasDefaultValueSql("gen_random_uuid()");
+
+            entity.Property(e => e.UserId)
+                .HasColumnType("uuid")
+                .HasColumnName("user_id");
+
+            entity.Property(e => e.Name)
+                .IsRequired()
+                .HasMaxLength(200)
+                .HasColumnName("name");
+
+            entity.Property(e => e.Description)
+                .HasMaxLength(1000)
+                .HasColumnName("description");
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_workout_templates_users");
+        });
+
+        // --- WorkoutTemplateItem ---
+        modelBuilder.Entity<WorkoutTemplateItem>(entity =>
+        {
+            entity.ToTable("workout_template_items");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                .HasColumnType("uuid")
+                .HasDefaultValueSql("gen_random_uuid()");
+
+            entity.Property(e => e.TemplateId)
+                .HasColumnType("uuid")
+                .HasColumnName("template_id");
+
+            entity.Property(e => e.ActivityTypeId)
+                .HasColumnType("uuid")
+                .HasColumnName("activity_type_id");
+
+            entity.Property(e => e.Sets)
+                .HasColumnName("sets");
+
+            entity.Property(e => e.Reps)
+                .HasColumnName("reps");
+
+            entity.Property(e => e.Weight)
+                .HasColumnName("weight");
+
+            entity.Property(e => e.DisplayOrder)
+                .IsRequired()
+                .HasColumnName("display_order");
+
+            entity.HasOne(e => e.Template)
+                .WithMany(e => e.Items)
+                .HasForeignKey(e => e.TemplateId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_workout_template_items_templates");
+
+            entity.HasOne(e => e.ActivityType)
+                .WithMany()
+                .HasForeignKey(e => e.ActivityTypeId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_workout_template_items_activity_types");
         });
 
         // --- PushSubscription ---

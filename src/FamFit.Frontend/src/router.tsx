@@ -6,6 +6,8 @@ import { Layout } from '@/components/Layout';
 import { LoginPage } from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { ActivityPage } from '@/pages/ActivityPage';
+import { WorkoutPage } from '@/pages/WorkoutPage';
+import { WorkoutTemplatePage } from '@/pages/WorkoutTemplatePage';
 import { AdminPage } from '@/pages/AdminPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { SettingsPage } from '@/pages/SettingsPage';
@@ -75,6 +77,14 @@ export const router = createBrowserRouter([
           {
             path: '/activity',
             element: <ActivityPage />
+          },
+          {
+            path: '/workout',
+            element: <WorkoutPage />
+          },
+          {
+            path: '/templates',
+            element: <WorkoutTemplatePage />
           },
           {
             path: '/admin',

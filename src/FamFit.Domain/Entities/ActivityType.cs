@@ -12,6 +12,9 @@ public sealed class ActivityType
     public UnitType UnitType { get; private set; } = UnitType.Count;
     public bool IsActive { get; private set; } = true;
 
+    // Navigation property
+    public ActivityTypeAttributes? ActivityTypeAttributes { get; private set; }
+
     // EF Core parameterless constructor
     private ActivityType() { }
 

@@ -7,12 +7,20 @@ import type {
   UserDto,
   ActivityTypeDto,
   CreateActivityTypeRequest,
+  UpdateActivityTypeAttributesRequest,
   ActivityLogDto,
   LogActivityRequest,
   PagedResponse,
   PushSubscriptionDto,
   RegisterPushSubscriptionRequest,
-  VapidPublicKeyResponse
+  VapidPublicKeyResponse,
+  WorkoutDto,
+  WorkoutListDto,
+  CreateWorkoutRequest,
+  WorkoutTemplateDto,
+  WorkoutTemplateListDto,
+  CreateWorkoutTemplateRequest,
+  AddWorkoutTemplateItemRequest
 } from '@/api/types';
 
 // ==================== Auth API ====================
@@ -100,4 +108,74 @@ export async function deletePushSubscription(id: string): Promise<void> {
 
 export async function getVapidPublicKey(): Promise<VapidPublicKeyResponse> {
   return http.get<VapidPublicKeyResponse>('/vapid/public-key');
+}
+
+// ==================== Activity Type Attributes API ====================
+
+export async function updateActivityTypeAttributes(
+  activityTypeId: string,
+  data: UpdateActivityTypeAttributesRequest
+): Promise<void> {
+  await http.put<void>(`/activity-types/${activityTypeId}/attributes`, data);
+}
+
+// ==================== Workout API ====================
+
+export async function getWorkouts(): Promise<WorkoutListDto[]> {
+  return http.get<WorkoutListDto[]>('/workouts');
+}
+
+export async function getWorkout(id: string): Promise<WorkoutDto> {
+  return http.get<WorkoutDto>(`/workouts/${id}`);
+}
+
+export async function createWorkout(data: CreateWorkoutRequest): Promise<WorkoutDto> {
+  return http.post<WorkoutDto>('/workouts', data);
+}
+
+export async function addWorkoutEntry(
+  workoutId: string,
+  data: { activityTypeId: string; sets?: number | null; reps?: number | null; weight?: number | null }
+): Promise<void> {
+  await http.post<void>(`/workouts/${workoutId}/entries`, data);
+}
+
+export async function completeWorkout(id: string): Promise<void> {
+  await http.post<void>(`/workouts/${id}/complete`);
+}
+
+export async function deleteWorkout(id: string): Promise<void> {
+  await http.delete<void>(`/workouts/${id}`);
+}
+
+// ==================== Workout Template API ====================
+
+export async function getWorkoutTemplates(): Promise<WorkoutTemplateListDto[]> {
+  return http.get<WorkoutTemplateListDto[]>('/workout-templates');
+}
+
+export async function getWorkoutTemplate(id: string): Promise<WorkoutTemplateDto> {
+  return http.get<WorkoutTemplateDto>(`/workout-templates/${id}`);
+}
+
+export async function createWorkoutTemplate(data: CreateWorkoutTemplateRequest): Promise<WorkoutTemplateDto> {
+  return http.post<WorkoutTemplateDto>('/workout-templates', data);
+}
+
+export async function addWorkoutTemplateItem(
+  templateId: string,
+  data: AddWorkoutTemplateItemRequest
+): Promise<void> {
+  await http.post<void>(`/workout-templates/${templateId}/items`, data);
+}
+
+export async function removeWorkoutTemplateItem(
+  templateId: string,
+  activityTypeId: string
+): Promise<void> {
+  await http.delete<void>(`/workout-templates/${templateId}/items/${activityTypeId}`);
+}
+
+export async function deleteWorkoutTemplate(id: string): Promise<void> {
+  await http.delete<void>(`/workout-templates/${id}`);
 }

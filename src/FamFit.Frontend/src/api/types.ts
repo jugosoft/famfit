@@ -67,6 +67,19 @@ export interface ActivityTypeDto {
   name: string;
   unitType: UnitType;
   isActive?: boolean;
+  attributes?: ActivityTypeAttributesDto;
+}
+
+export interface ActivityTypeAttributesDto {
+  sets?: number | null;
+  reps?: number | null;
+  weight?: number | null;
+}
+
+export interface UpdateActivityTypeAttributesRequest {
+  sets?: number | null;
+  reps?: number | null;
+  weight?: number | null;
 }
 
 export interface CreateActivityTypeRequest {
@@ -121,4 +134,80 @@ export interface RegisterPushSubscriptionRequest {
 
 export interface VapidPublicKeyResponse {
   publicKey: string;
+}
+
+/**
+ * ==================== Workout ====================
+ */
+
+export interface WorkoutEntryDto {
+  id: string;
+  activityTypeId: string;
+  sets?: number | null;
+  reps?: number | null;
+  weight?: number | null;
+  activityType?: ActivityTypeDto;
+}
+
+export interface WorkoutDto {
+  id: string;
+  userId: string;
+  name?: string | null;
+  startTime: string;
+  endTime?: string | null;
+  isCompleted: boolean;
+  entries: WorkoutEntryDto[];
+}
+
+export interface WorkoutListDto {
+  id: string;
+  name?: string | null;
+  startTime: string;
+  endTime?: string | null;
+  isCompleted: boolean;
+}
+
+export interface CreateWorkoutRequest {
+  name?: string | null;
+}
+
+/**
+ * ==================== WorkoutTemplate ====================
+ */
+
+export interface WorkoutTemplateItemDto {
+  id: string;
+  activityTypeId: string;
+  sets?: number | null;
+  reps?: number | null;
+  weight?: number | null;
+  displayOrder: number;
+  activityType?: ActivityTypeDto;
+}
+
+export interface WorkoutTemplateDto {
+  id: string;
+  userId: string;
+  name: string;
+  description?: string | null;
+  items: WorkoutTemplateItemDto[];
+}
+
+export interface WorkoutTemplateListDto {
+  id: string;
+  name: string;
+  description?: string | null;
+  itemsCount: number;
+}
+
+export interface CreateWorkoutTemplateRequest {
+  name: string;
+  description?: string | null;
+}
+
+export interface AddWorkoutTemplateItemRequest {
+  activityTypeId: string;
+  sets?: number | null;
+  reps?: number | null;
+  weight?: number | null;
 }

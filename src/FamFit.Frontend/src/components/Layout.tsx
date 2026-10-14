@@ -8,7 +8,8 @@ import {
   User,
   Menu,
   X,
-  ChevronRight
+  ChevronRight,
+  Calendar
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -23,9 +24,11 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Дашборд', icon: LayoutDashboard },
+  { to: '/workout', label: 'Тренировки', icon: Calendar },
+  { to: '/templates', label: 'Шаблоны', icon: Dumbbell },
   { to: '/activity', label: 'Активность', icon: PlusCircle },
   { to: '/profile', label: 'Профиль', icon: User },
-  { to: '/admin', label: 'Админ-панель', icon: Dumbbell, adminOnly: true },
+  { to: '/admin', label: 'Админ-панель', icon: Settings, adminOnly: true },
   { to: '/settings', label: 'Настройки', icon: Settings }
 ];
 

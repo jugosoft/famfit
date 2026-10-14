@@ -3,6 +3,7 @@ using FamFit.Application.Commands.ActivityTypes;
 using FamFit.Infrastructure.Data;
 using FamFit.WebApi.Models;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 

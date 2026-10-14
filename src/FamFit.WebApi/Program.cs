@@ -234,6 +234,8 @@ app.MapActivityTypeEndpoints();
 app.MapActivityLogEndpoints();
 app.MapPushSubscriptionEndpoints();
 app.MapVapidEndpoints();
+app.MapWorkoutEndpoints();
+app.MapWorkoutTemplateEndpoints();
 
 // === Health Check ===
 app.MapHealthChecks("/health");
