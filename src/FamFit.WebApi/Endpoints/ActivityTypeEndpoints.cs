@@ -7,6 +7,7 @@ using FamFit.WebApi.Models;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
 
 namespace FamFit.WebApi.Endpoints;
 
@@ -133,10 +134,48 @@ public static class ActivityTypeEndpoints
             Guid id,
             FamFitDbContext db) =>
         {
-            var activityType = await db.ActivityTypes.FindAsync(id);
+            var activityType = await db.ActivityTypes
+                .Include(at => at.ActivityTypeAttributeValues)
+                .Include(at => at.WorkoutTemplateItems)
+                .Include(at => at.ActivityLogs)
+                .FirstOrDefaultAsync(at => at.Id == id);
 
             if (activityType is null)
                 return Results.NotFound();
+
+            // Check if activity type is referenced by other entities
+            var references = new List<string>();
+
+            var hasTypeAttributeValues = await db.ActivityTypeAttributeValues
+                .AnyAsync(atav => atav.ActivityTypeId == id);
+            if (hasTypeAttributeValues)
+                references.Add("шаблонов атрибутов типов активностей");
+
+            var hasTemplateItems = await db.WorkoutTemplateItems
+                .AnyAsync(wti => wti.ActivityTypeId == id);
+            if (hasTemplateItems)
+                references.Add("элементов шаблонов тренировок");
+
+            var hasWorkoutEntries = await db.WorkoutEntries
+                .AnyAsync(we => we.ActivityTypeId == id);
+            if (hasWorkoutEntries)
+                references.Add("записей тренировок");
+
+            var hasActivityLogs = await db.ActivityLogs
+                .AnyAsync(al => al.ActivityTypeId == id);
+            if (hasActivityLogs)
+                references.Add("журналов активности");
+
+            if (references.Count > 0)
+            {
+                var referencedIn = string.Join(", ", references);
+                return Results.Conflict(new
+                {
+                    error = "ActivityTypeInUse",
+                    message = $"Невозможно деактивировать тип активности, так как он используется в: {referencedIn}. Сначала удалите или обновите связанные записи.",
+                    references
+                });
+            }
 
             activityType.Deactivate();
             await db.SaveChangesAsync();
@@ -144,11 +183,12 @@ public static class ActivityTypeEndpoints
             return Results.Ok(new { id, isActive = false });
         })
         .WithSummary("Деактивировать тип активности")
-        .WithDescription("Делает тип активности неактивным. Доступно только для FamilyAdmin.")
+        .WithDescription("Делает тип активности неактивным. Доступно только для FamilyAdmin. Возвращает ошибку 409, если тип используется в других сущностях.")
         .RequireAuthorization("Admin")
         .Produces<object>()
         .Produces(StatusCodes.Status404NotFound)
-        .Produces(StatusCodes.Status403Forbidden);
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status409Conflict);
 
         // PUT /api/activity-types/{id}/attributes — обновить атрибуты
         group.MapPut("/{id:guid}/attributes", async (
@@ -174,7 +214,99 @@ public static class ActivityTypeEndpoints
         .Produces(StatusCodes.Status404NotFound)
         .Produces(StatusCodes.Status403Forbidden);
 
+        // PUT /api/activity-types/attributes/values/{id}/deactivate — деактивировать значение атрибута
+        group.MapPut("/attributes/values/{id:guid}/deactivate", async (
+            Guid id,
+            FamFitDbContext db) =>
+        {
+            var attributeValue = await db.AttributeValues
+                .Include(av => av.ActivityTypeAttributeValues)
+                .Include(av => av.WorkoutEntryAttributeValues)
+                .Include(av => av.WorkoutTemplateItemAttributeValues)
+                .FirstOrDefaultAsync(av => av.Id == id);
+
+            if (attributeValue is null)
+                return Results.NotFound();
+
+            var references = new List<string>();
+
+            var hasTypeAttributeValues = await db.ActivityTypeAttributeValues
+                .AnyAsync(atav => atav.AttributeValueId == id);
+            if (hasTypeAttributeValues)
+                references.Add("типов активностей");
+
+            var hasWorkoutEntryAttrValues = await db.WorkoutEntryAttributeValues
+                .AnyAsync(weav => weav.AttributeValueId == id);
+            if (hasWorkoutEntryAttrValues)
+                references.Add("записей тренировок");
+
+            var hasTemplateItemAttrValues = await db.WorkoutTemplateItemAttributeValues
+                .AnyAsync(wtiev => wtiev.AttributeValueId == id);
+            if (hasTemplateItemAttrValues)
+                references.Add("элементов шаблонов тренировок");
+
+            if (references.Count > 0)
+            {
+                var referencedIn = string.Join(", ", references);
+                return Results.Conflict(new
+                {
+                    error = "AttributeValueInUse",
+                    message = $"Невозможно деактивировать значение атрибута, так как оно используется в: {referencedIn}. Сначала удалите связанные записи.",
+                    references
+                });
+            }
+
+            // Деактивируем значение атрибута, устанавливая его в null
+            attributeValue.Update(intValue: null, decimalValue: null, boolValue: null, stringValue: null);
+            await db.SaveChangesAsync();
+
+            return Results.Ok(new { id, isActive = false });
+        })
+        .WithSummary("Деактивировать значение атрибута")
+        .WithDescription("Сбрасывает значение атрибута. Доступно только для FamilyAdmin. Возвращает 409, если значение используется.")
+        .RequireAuthorization("Admin")
+        .Produces<object>()
+        .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status409Conflict);
+
         // === Attribute Definitions Endpoints ===
+
+        // PUT /api/activity-types/definitions/{id}/deactivate — деактивировать определение атрибута
+        group.MapPut("/definitions/{id:guid}/deactivate", async (
+            Guid id,
+            FamFitDbContext db) =>
+        {
+            var definition = await db.ActivityAttributeDefinitions.FindAsync(id);
+
+            if (definition is null)
+                return Results.NotFound();
+
+            // Проверяем, используется ли определение в ActivityAttributeValue
+            var hasAttributeValues = await db.AttributeValues
+                .AnyAsync(av => av.DefinitionId == id);
+            if (hasAttributeValues)
+            {
+                return Results.Conflict(new
+                {
+                    error = "AttributeDefinitionInUse",
+                    message = $"Невозможно деактивировать определение атрибута, так как оно используется в значениях атрибутов. Сначала удалите связанные записи.",
+                    references = new[] { "значений атрибутов" }
+                });
+            }
+
+            definition.Update(isActive: false);
+            await db.SaveChangesAsync();
+
+            return Results.Ok(new { id, isActive = false });
+        })
+        .WithSummary("Деактивировать определение атрибута")
+        .WithDescription("Делает определение атрибута неактивным. Доступно только для FamilyAdmin. Возвращает 409, если определение используется.")
+        .RequireAuthorization("Admin")
+        .Produces<object>()
+        .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status409Conflict);
 
         // GET /api/activity-types/definitions — список определений
         group.MapGet("/definitions", async (IMediator mediator) =>

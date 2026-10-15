@@ -15,6 +15,9 @@ public sealed class ActivityType
 
     // Navigation properties
     public ICollection<ActivityTypeAttributeValue> ActivityTypeAttributeValues { get; private set; } = new List<ActivityTypeAttributeValue>();
+    public ICollection<WorkoutTemplateItem> WorkoutTemplateItems { get; private set; } = new List<WorkoutTemplateItem>();
+    public ICollection<WorkoutEntry> WorkoutEntries { get; private set; } = new List<WorkoutEntry>();
+    public ICollection<ActivityLog> ActivityLogs { get; private set; } = new List<ActivityLog>();
 
     // EF Core parameterless constructor
     private ActivityType() { }

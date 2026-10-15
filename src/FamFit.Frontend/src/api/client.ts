@@ -73,12 +73,34 @@ export async function getActivityAttributeDefinitions(): Promise<AttributeDefini
   return http.get<AttributeDefinitionDto[]>('/activity-types/definitions');
 }
 
+export async function deactivateActivityAttributeDefinition(id: string): Promise<void> {
+  try {
+    await http.put<void>(`/activity-types/definitions/${id}/deactivate`);
+  } catch (error: any) {
+    // Если 409 Conflict — передаём сообщение об ошибке
+    if (error?.response?.status === 409) {
+      const detail = error?.response?.data?.message || 'Определение атрибута используется в значениях и не может быть деактивировано';
+      throw new Error(detail);
+    }
+    throw error;
+  }
+}
+
 export async function createActivityType(data: CreateActivityTypeRequest): Promise<ActivityTypeDto> {
   return http.post<ActivityTypeDto>('/activity-types', data);
 }
 
 export async function deactivateActivityType(id: string): Promise<void> {
-  await http.put<void>(`/activity-types/${id}/deactivate`);
+  try {
+    await http.put<void>(`/activity-types/${id}/deactivate`);
+  } catch (error: any) {
+    // Если 409 Conflict — передаём сообщение об ошибке
+    if (error?.response?.status === 409) {
+      const detail = error?.response?.data?.message || 'Тип активности используется в других записях и не может быть деактивирован';
+      throw new Error(detail);
+    }
+    throw error;
+  }
 }
 
 // ==================== Activity Logs API ====================
