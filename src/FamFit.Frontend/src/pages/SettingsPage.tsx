@@ -3,7 +3,7 @@ import { LogOut, Bell, Moon, Sun, Shield, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
-import { Dialog } from '@/components/ui/Dialog';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Badge } from '@/components/ui/Badge';
 import { Separator } from '@/components/ui/Separator';
 import { useAuth as useAuthContext } from '@/contexts/AuthContext';
@@ -25,9 +25,7 @@ export function SettingsPage() {
   }
 
   function handleDeleteAccount() {
-    if (!confirm('Вы уверены? Это действие необратимо.')) return;
     toast.error('Функция в разработке');
-    setShowDeleteDialog(false);
   }
 
   return (
@@ -171,21 +169,16 @@ export function SettingsPage() {
       </Dialog>
 
       {/* Delete Account Dialog */}
-      <Dialog
+      <ConfirmDialog
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
         title="Удалить аккаунт"
         description="Это действие необратимо. Все ваши данные будут удалены."
-      >
-        <div className="flex gap-3 justify-end">
-          <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-            Отмена
-          </Button>
-          <Button variant="destructive" onClick={handleDeleteAccount}>
-            Удалить
-          </Button>
-        </div>
-      </Dialog>
+        confirmText="Удалить"
+        cancelText="Отмена"
+        variant="destructive"
+        onConfirm={handleDeleteAccount}
+      />
     </div>
   );
 }

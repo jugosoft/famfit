@@ -145,7 +145,7 @@ public sealed class FamFitDbContext : DbContext, IApplicationDbContext
                 .HasConstraintName("fk_activity_logs_users");
 
             entity.HasOne(e => e.ActivityType)
-                .WithMany()
+                .WithMany(e => e.ActivityLogs)
                 .HasForeignKey(e => e.ActivityTypeId)
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("fk_activity_logs_activity_types");
@@ -410,7 +410,7 @@ public sealed class FamFitDbContext : DbContext, IApplicationDbContext
                 .HasConstraintName("fk_workout_entries_workouts");
 
             entity.HasOne(e => e.ActivityType)
-                .WithMany()
+                .WithMany(e => e.WorkoutEntries)
                 .HasForeignKey(e => e.ActivityTypeId)
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("fk_workout_entries_activity_types");
@@ -477,7 +477,7 @@ public sealed class FamFitDbContext : DbContext, IApplicationDbContext
                 .HasConstraintName("fk_workout_template_items_templates");
 
             entity.HasOne(e => e.ActivityType)
-                .WithMany()
+                .WithMany(e => e.WorkoutTemplateItems)
                 .HasForeignKey(e => e.ActivityTypeId)
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("fk_workout_template_items_activity_types");

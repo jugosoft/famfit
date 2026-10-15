@@ -503,7 +503,7 @@ namespace FamFit.Infrastructure.Migrations
             modelBuilder.Entity("FamFit.Domain.Entities.ActivityLog", b =>
                 {
                     b.HasOne("FamFit.Domain.Entities.ActivityType", "ActivityType")
-                        .WithMany()
+                        .WithMany("ActivityLogs")
                         .HasForeignKey("ActivityTypeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
@@ -569,7 +569,7 @@ namespace FamFit.Infrastructure.Migrations
             modelBuilder.Entity("FamFit.Domain.Entities.WorkoutEntry", b =>
                 {
                     b.HasOne("FamFit.Domain.Entities.ActivityType", "ActivityType")
-                        .WithMany()
+                        .WithMany("WorkoutEntries")
                         .HasForeignKey("ActivityTypeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
@@ -623,7 +623,7 @@ namespace FamFit.Infrastructure.Migrations
             modelBuilder.Entity("FamFit.Domain.Entities.WorkoutTemplateItem", b =>
                 {
                     b.HasOne("FamFit.Domain.Entities.ActivityType", "ActivityType")
-                        .WithMany()
+                        .WithMany("WorkoutTemplateItems")
                         .HasForeignKey("ActivityTypeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
@@ -678,7 +678,13 @@ namespace FamFit.Infrastructure.Migrations
 
             modelBuilder.Entity("FamFit.Domain.Entities.ActivityType", b =>
                 {
+                    b.Navigation("ActivityLogs");
+
                     b.Navigation("ActivityTypeAttributeValues");
+
+                    b.Navigation("WorkoutEntries");
+
+                    b.Navigation("WorkoutTemplateItems");
                 });
 
             modelBuilder.Entity("FamFit.Domain.Entities.Workout", b =>

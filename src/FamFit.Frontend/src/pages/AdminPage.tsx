@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { Dialog } from '@/components/ui/Dialog';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Alert } from '@/components/ui/Alert';
 import { useAuth } from '@/contexts/AuthContext';
@@ -48,6 +49,10 @@ export function AdminPage() {
   
   const [showDialog, setShowDialog] = useState(false);
   const [showAttributesDialog, setShowAttributesDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteName, setDeleteName] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [attributesId, setAttributesId] = useState<string | null>(null);
   const [formName, setFormName] = useState('');
@@ -168,15 +173,25 @@ export function AdminPage() {
     }
   }
 
-  async function handleDelete(id: string, name: string) {
-    if (!confirm(`Удалить тип "${name}"?`)) return;
+  function openDeleteDialog(id: string, name: string) {
+    setDeleteId(id);
+    setDeleteName(name);
+    setShowDeleteDialog(true);
+  }
+
+  async function confirmDelete() {
+    if (!deleteId) return;
+    setIsDeleting(true);
 
     try {
-      await deactivateActivityType(id);
+      await deactivateActivityType(deleteId);
       toast.success('Тип деактивирован');
       queryClient.invalidateQueries({ queryKey: ['activity-types'] });
     } catch (error: any) {
       toast.error('Ошибка', error.message || 'Не удалось деактивировать тип');
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
     }
   }
 
@@ -284,7 +299,7 @@ export function AdminPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDelete(item.id, item.name)}
+                          onClick={() => openDeleteDialog(item.id, item.name)}
                         >
                           <X className="h-4 w-4 text-destructive" />
                         </Button>
@@ -401,6 +416,19 @@ export function AdminPage() {
           </div>
         </div>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title="Деактивировать тип активности"
+        description={`Вы уверены, что хотите деактивировать "${deleteName}"? Это действие можно отменить.`}
+        confirmText="Деактивировать"
+        cancelText="Отмена"
+        variant="destructive"
+        onConfirm={confirmDelete}
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

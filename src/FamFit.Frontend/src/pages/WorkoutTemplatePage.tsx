@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { toast } from '@/components/ui/Toaster';
 import {
@@ -32,6 +33,8 @@ export function WorkoutTemplatePage() {
   const { templateId } = useParams<{ templateId: string }>();
   const navigate = useNavigate();
   const [showNewTemplate, setShowNewTemplate] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteTemplateId, setDeleteTemplateId] = useState<string | null>(null);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateDesc, setNewTemplateDesc] = useState('');
   const [selectedActivityTypeId, setSelectedActivityTypeId] = useState('');
@@ -144,17 +147,25 @@ export function WorkoutTemplatePage() {
     );
   }
 
-  function handleDeleteTemplate(id: string) {
-    if (!confirm('Удалить этот шаблон?')) return;
+  function openDeleteDialog(id: string) {
+    setDeleteTemplateId(id);
+    setShowDeleteDialog(true);
+  }
 
-    deleteTemplateMutation.mutate(id, {
+  function confirmDeleteTemplate() {
+    if (!deleteTemplateId) return;
+
+    deleteTemplateMutation.mutate(deleteTemplateId, {
       onSuccess: () => {
         toast.success('Шаблон удалён');
-        if (templateId === id) navigate('/templates');
+        if (templateId === deleteTemplateId) navigate('/templates');
         refetchTemplates();
       },
       onError: (error: Error) => {
         toast.error('Ошибка', error.message);
+      },
+      onSettled: () => {
+        setShowDeleteDialog(false);
       }
     });
   }
@@ -277,7 +288,7 @@ export function WorkoutTemplatePage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={(e) => { e.stopPropagation(); handleDeleteTemplate(t.id); }}
+                        onClick={(e) => { e.stopPropagation(); openDeleteDialog(t.id); }}
                         className="shrink-0"
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -446,6 +457,18 @@ export function WorkoutTemplatePage() {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title="Удалить шаблон"
+        description="Вы уверены, что хотите удалить этот шаблон? Это действие необратимо."
+        confirmText="Удалить"
+        cancelText="Отмена"
+        variant="destructive"
+        onConfirm={confirmDeleteTemplate}
+      />
     </div>
   );
 }

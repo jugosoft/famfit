@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { toast } from '@/components/ui/Toaster';
 import {
@@ -35,6 +36,8 @@ interface WorkoutEntryForm {
 
 export function WorkoutPage() {
   const [showNewWorkout, setShowNewWorkout] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteWorkoutId, setDeleteWorkoutId] = useState<string | null>(null);
   const [newWorkoutName, setNewWorkoutName] = useState('');
   const [activeWorkoutId, setActiveWorkoutId] = useState<string | null>(null);
   const [entryForm, setEntryForm] = useState<WorkoutEntryForm>({
@@ -155,17 +158,25 @@ export function WorkoutPage() {
     });
   }
 
-  function handleDeleteWorkout(id: string) {
-    if (!confirm('Удалить эту тренировку?')) return;
+  function openDeleteDialog(id: string) {
+    setDeleteWorkoutId(id);
+    setShowDeleteDialog(true);
+  }
 
-    deleteWorkoutMutation.mutate(id, {
+  function confirmDeleteWorkout() {
+    if (!deleteWorkoutId) return;
+
+    deleteWorkoutMutation.mutate(deleteWorkoutId, {
       onSuccess: () => {
         toast.success('Тренировка удалена');
-        if (activeWorkoutId === id) setActiveWorkoutId(null);
+        if (activeWorkoutId === deleteWorkoutId) setActiveWorkoutId(null);
         refetch();
       },
       onError: (error: Error) => {
         toast.error('Ошибка', error.message);
+      },
+      onSettled: () => {
+        setShowDeleteDialog(false);
       }
     });
   }
@@ -401,7 +412,7 @@ export function WorkoutPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDeleteWorkout(workout.id)}
+                        onClick={() => openDeleteDialog(workout.id)}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -413,6 +424,18 @@ export function WorkoutPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title="Удалить тренировку"
+        description="Вы уверены, что хотите удалить эту тренировку? Это действие необратимо."
+        confirmText="Удалить"
+        cancelText="Отмена"
+        variant="destructive"
+        onConfirm={confirmDeleteWorkout}
+      />
     </div>
   );
 }
