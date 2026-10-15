@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Dumbbell,
   Plus,
@@ -28,15 +29,16 @@ import {
 import type { AttributeInput } from '@/api/types';
 
 export function WorkoutTemplatePage() {
+  const { templateId } = useParams<{ templateId: string }>();
+  const navigate = useNavigate();
   const [showNewTemplate, setShowNewTemplate] = useState(false);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateDesc, setNewTemplateDesc] = useState('');
   const [selectedActivityTypeId, setSelectedActivityTypeId] = useState('');
   const [attributeValues, setAttributeValues] = useState<Record<string, string>>({});
 
   const { data: templates, isLoading: templatesLoading, refetch: refetchTemplates } = useWorkoutTemplates();
-  const { data: template, isLoading: templateLoading } = useWorkoutTemplate(selectedTemplateId ?? '');
+  const { data: template, isLoading: templateLoading } = useWorkoutTemplate(templateId ?? '');
   const { data: activityTypes } = useActivityTypes();
   const { data: attributeDefinitions } = useAttributeDefinitions();
   const createTemplateMutation = useCreateWorkoutTemplate();
@@ -76,7 +78,7 @@ export function WorkoutTemplatePage() {
       { name: newTemplateName.trim(), description: newTemplateDesc.trim() || undefined },
       {
         onSuccess: (data) => {
-          setSelectedTemplateId(data.id);
+          navigate(`/templates/${data.id}`);
           setShowNewTemplate(false);
           setNewTemplateName('');
           setNewTemplateDesc('');
@@ -148,7 +150,7 @@ export function WorkoutTemplatePage() {
     deleteTemplateMutation.mutate(id, {
       onSuccess: () => {
         toast.success('Шаблон удалён');
-        if (selectedTemplateId === id) setSelectedTemplateId(null);
+        if (templateId === id) navigate('/templates');
         refetchTemplates();
       },
       onError: (error: Error) => {
@@ -165,8 +167,7 @@ export function WorkoutTemplatePage() {
       {
         onSuccess: () => {
           toast.success(`Тренировка "${template.name}" создана!`);
-          // Navigate to workout page
-          window.location.hash = '#/workout';
+          navigate('/workout');
         },
         onError: (error: Error) => {
           toast.error('Ошибка', error.message);
@@ -260,11 +261,11 @@ export function WorkoutTemplatePage() {
                     <div
                       key={t.id}
                       className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
-                        selectedTemplateId === t.id
+                        templateId === t.id
                           ? 'border-primary bg-primary/5'
                           : 'hover:bg-muted/30'
                       }`}
-                      onClick={() => setSelectedTemplateId(t.id)}
+                      onClick={() => navigate(`/templates/${t.id}`)}
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <Dumbbell className="h-4 w-4 text-muted-foreground shrink-0" />

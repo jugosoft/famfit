@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Dumbbell, CheckCircle2, Bell } from 'lucide-react';
@@ -15,9 +15,27 @@ import { toast } from '@/components/ui/Toaster';
 
 export function ActivityPage() {
   const { user } = useAuth();
-  const [selectedType, setSelectedType] = useState('');
   const [value, setValue] = useState('');
-  const [page, setPage] = useState(1);
+
+  const setSearch = useCallback((updates: Record<string, string | undefined>) => {
+    const params = new URLSearchParams(window.location.search);
+    for (const [key, val] of Object.entries(updates)) {
+      if (val === undefined || val === '') {
+        params.delete(key);
+      } else {
+        params.set(key, val);
+      }
+    }
+    const query = params.toString();
+    window.history.replaceState(
+      {},
+      '',
+      `${window.location.pathname}${query ? `?${query}` : ''}`
+    );
+  }, []);
+
+  const selectedType = new URLSearchParams(window.location.search).get('type') ?? '';
+  const page = parseInt(new URLSearchParams(window.location.search).get('page') ?? '1', 10) || 1;
 
   const { data: activityTypes } = useActivityTypes();
   const { data: logs, isLoading: logsLoading, refetch } = useActivityLogs(user?.id ?? '', page, 10);
@@ -41,7 +59,7 @@ export function ActivityPage() {
       {
         onSuccess: () => {
           toast.success('Активность записана!');
-          setSelectedType('');
+          setSearch({ type: undefined, page: '1' });
           setValue('');
           refetch();
         },
@@ -67,7 +85,7 @@ export function ActivityPage() {
       {
         onSuccess: () => {
           toast.success('Активность записана + push отправлен!');
-          setSelectedType('');
+          setSearch({ type: undefined, page: '1' });
           setValue('');
           refetch();
         },
@@ -105,7 +123,7 @@ export function ActivityPage() {
                   label: `${t.name} (${t.unitType === 'Count' ? 'шт.' : 'мин.'})`
                 }))}
                 value={selectedType}
-                onValueChange={setSelectedType}
+                onValueChange={(v) => setSearch({ type: v, page: '1' })}
               />
             </div>
 
@@ -170,7 +188,7 @@ export function ActivityPage() {
               title="Нет записей"
               description="Запишите свою первую тренировку, чтобы увидеть историю здесь"
               action={
-                <Button onClick={() => { setSelectedType(''); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+                <Button onClick={() => { setSearch({ type: undefined }); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
                   Записать активность
                 </Button>
               }
@@ -209,7 +227,7 @@ export function ActivityPage() {
             <Pagination
               currentPage={page}
               totalPages={logs.totalPages}
-              onPageChange={setPage}
+              onPageChange={(p) => setSearch({ page: String(p) })}
               className="mt-4"
             />
           )}

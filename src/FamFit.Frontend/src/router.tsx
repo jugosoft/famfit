@@ -87,6 +87,10 @@ export const router = createBrowserRouter([
             element: <WorkoutTemplatePage />
           },
           {
+            path: '/templates/:templateId',
+            element: <WorkoutTemplatePage />
+          },
+          {
             path: '/admin',
             element: <AdminPage />
           },
