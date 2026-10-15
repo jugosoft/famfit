@@ -81,7 +81,7 @@ public class LogActivityWithNotificationHandler
         await _pushService.SendNotificationAsync(
             request.UserId,
             "🏋️ FamFit — Активность записана!",
-            $"{activityType.Name}: {request.Value} {activityType.UnitType}",
+            $"{activityType.Name}: {request.Value}",
             actions,
             cancellationToken);
 

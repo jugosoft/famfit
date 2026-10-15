@@ -70,7 +70,7 @@ public static class WorkoutEndpoints
                 {
                     e.ActivityType.Id,
                     e.ActivityType.Name,
-                    e.ActivityType.UnitType
+                    e.ActivityType.ActivityUnitId
                 } : null))
                 .ToList();
 

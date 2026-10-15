@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 
 using FamFit.Application.Interfaces;
 using FamFit.Domain.Entities;
-using FamFit.Domain.Enums;
 using MediatR;
 
 namespace FamFit.Application.Commands.ActivityTypes;
@@ -12,7 +11,7 @@ namespace FamFit.Application.Commands.ActivityTypes;
 /// </summary>
 public record CreateActivityTypeCommand(
     string Name,
-    UnitType UnitType) : IRequest<ActivityType>;
+    Guid ActivityUnitId) : IRequest<ActivityType>;
 
 /// <summary>
 /// Handler команды CreateActivityTypeCommand.
@@ -31,14 +30,6 @@ public class CreateActivityTypeHandler : IRequestHandler<CreateActivityTypeComma
         CreateActivityTypeCommand request,
         CancellationToken cancellationToken)
     {
-        // --- Проверка: авторизация через HttpContext вне этого слоя ---
-        // В реальном проекте роль пользователя передаётся через контекст (например, 
-        // ICurrentUserService) и проверяется здесь.
-        //
-        // Пример:
-        //   if (!_currentUserService.IsAdmin())
-        //       throw new UnauthorizedAccessException("Only FamilyAdmin can create activity types.");
-
         // Проверка: тип с таким именем уже существует?
         var exists = await _dbContext.ActivityTypes
             .AnyAsync(at => at.Name == request.Name, cancellationToken);
@@ -48,7 +39,7 @@ public class CreateActivityTypeHandler : IRequestHandler<CreateActivityTypeComma
                 $"Activity type with name '{request.Name}' already exists.");
 
         // Создание сущности через фабричный метод Domain-модели
-        var activityType = ActivityType.Create(request.Name, request.UnitType);
+        var activityType = ActivityType.Create(request.Name, request.ActivityUnitId);
 
         _dbContext.ActivityTypes.Add(activityType);
         await _dbContext.SaveChangesAsync(cancellationToken);

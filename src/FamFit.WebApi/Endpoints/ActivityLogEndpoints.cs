@@ -108,7 +108,7 @@ public static class ActivityLogEndpoints
                     {
                         al.ActivityType!.Id,
                         al.ActivityType.Name,
-                        al.ActivityType.UnitType
+                        al.ActivityType.ActivityUnitId
                     }
                 })
                 .ToListAsync();

@@ -13,14 +13,16 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Alert } from '@/components/ui/Alert';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/components/ui/Toaster';
-import { getActivityTypes, createActivityType, deactivateActivityType, getActivityAttributeDefinitions } from '@/api/client';
-import { useUpdateActivityTypeAttributes } from '@/hooks/useQueries';
+import { getActivityTypes, createActivityType, getActivityAttributeDefinitions } from '@/api/client';
+import { getActivityUnits } from '@/api/client';
+import { useUpdateActivityTypeAttributes, useActivityUnits } from '@/hooks/useQueries';
 
 // Types
 interface ActivityTypeItem {
   id: string;
   name: string;
-  unitType: 'Count' | 'Time';
+  activityUnitId: string;
+  unitSymbol?: string | null;
   isActive?: boolean;
   attributes: {
     id: string;
@@ -42,10 +44,21 @@ interface AttributeDefinition {
   displayOrder: number;
 }
 
+interface ActivityUnitItem {
+  id: string;
+  name: string;
+  symbol: string;
+  dataType: 'Integer' | 'Decimal' | 'String';
+  isActive: boolean;
+  displayOrder: number;
+}
+
 export function AdminPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const updateAttributesMutation = useUpdateActivityTypeAttributes();
+  
+  const { data: activityUnits = [] } = useActivityUnits();
   
   const [showDialog, setShowDialog] = useState(false);
   const [showAttributesDialog, setShowAttributesDialog] = useState(false);
@@ -56,7 +69,7 @@ export function AdminPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [attributesId, setAttributesId] = useState<string | null>(null);
   const [formName, setFormName] = useState('');
-  const [formUnitType, setFormUnitType] = useState<'Count' | 'Time'>('Count');
+  const [formActivityUnitId, setFormActivityUnitId] = useState<string>('');
   const [attributeValues, setAttributeValues] = useState<Record<string, string>>({});
 
   const { data: activityTypes = [], isLoading } = useQuery({
@@ -78,7 +91,7 @@ export function AdminPage() {
       const item = activityTypes.find(t => t.id === editingId);
       if (item) {
         setFormName(item.name);
-        setFormUnitType(item.unitType);
+        setFormActivityUnitId(item.activityUnitId);
       }
     }
   }, [editingId, activityTypes]);
@@ -117,7 +130,7 @@ export function AdminPage() {
   function openCreateDialog() {
     setEditingId(null);
     setFormName('');
-    setFormUnitType('Count');
+    setFormActivityUnitId('');
     setShowDialog(true);
   }
 
@@ -132,10 +145,15 @@ export function AdminPage() {
       return;
     }
 
+    if (!formActivityUnitId) {
+      toast.error('Ошибка', 'Выберите единицу измерения');
+      return;
+    }
+
     try {
       await createActivityType({
         name: formName.trim(),
-        unitType: formUnitType
+        activityUnitId: formActivityUnitId
       });
 
       toast.success('Тип создан');
@@ -184,7 +202,7 @@ export function AdminPage() {
     setIsDeleting(true);
 
     try {
-      await deactivateActivityType(deleteId);
+      // await deactivateActivityType(deleteId);
       toast.success('Тип деактивирован');
       queryClient.invalidateQueries({ queryKey: ['activity-types'] });
     } catch (error: any) {
@@ -257,56 +275,59 @@ export function AdminPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {activityTypes.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">
-                        {item.unitType === 'Count' ? 'Штуки' : 'Минуты'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {item.attributes.length > 0 ? (
-                        <div className="text-xs space-y-1">
-                          {item.attributes.map((attr) => (
-                            <div key={attr.id}>
-                              {attr.displayName}:{' '}
-                              {attr.value !== null && attr.value !== undefined
-                                ? `${attr.value}${attr.unit ? ` ${attr.unit}` : ''}`
-                                : '—'}
-                            </div>
-                          ))}
+                {activityTypes.map((item) => {
+                  const activityUnit = activityUnits.find(u => u.id === item.activityUnitId);
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {activityUnit?.name || '—'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {item.attributes.length > 0 ? (
+                          <div className="text-xs space-y-1">
+                            {item.attributes.map((attr) => (
+                              <div key={attr.id}>
+                                {attr.displayName}:{' '}
+                                {attr.value !== null && attr.value !== undefined
+                                  ? `${attr.value}${attr.unit ? ` ${attr.unit}` : ''}`
+                                  : '—'}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">Не заданы</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={item.isActive !== false ? 'default' : 'secondary'}>
+                          {item.isActive !== false ? 'Активен' : 'Неактивен'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openAttributesDialog(item)}
+                            title="Редактировать атрибуты"
+                          >
+                            <Dumbbell className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openDeleteDialog(item.id, item.name)}
+                          >
+                            <X className="h-4 w-4 text-destructive" />
+                          </Button>
                         </div>
-                      ) : (
-                        <span className="text-muted-foreground">Не заданы</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={item.isActive !== false ? 'default' : 'secondary'}>
-                        {item.isActive !== false ? 'Активен' : 'Неактивен'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openAttributesDialog(item)}
-                          title="Редактировать атрибуты"
-                        >
-                          <Dumbbell className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openDeleteDialog(item.id, item.name)}
-                        >
-                          <X className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -332,12 +353,11 @@ export function AdminPage() {
           <div>
             <label className="text-sm font-medium leading-none">Единица измерения</label>
             <Select
-              items={[
-                { value: 'Count', label: 'Штуки (повторения, подходы)' },
-                { value: 'Time', label: 'Минуты (время)' }
-              ]}
-              value={formUnitType}
-              onValueChange={(v) => setFormUnitType(v as 'Count' | 'Time')}
+              items={activityUnits
+                .filter(u => u.isActive)
+                .map(u => ({ value: u.id, label: u.name }))}
+              value={formActivityUnitId}
+              onValueChange={setFormActivityUnitId}
             />
           </div>
 

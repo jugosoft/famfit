@@ -23,7 +23,10 @@ import type {
   WorkoutTemplateListDto,
   CreateWorkoutTemplateRequest,
   AddWorkoutTemplateItemRequest,
-  TemplateAttributeInput
+  TemplateAttributeInput,
+  ActivityUnitDto,
+  CreateActivityUnitRequest,
+  UpdateActivityUnitRequest
 } from '@/api/types';
 
 // ==================== Auth API ====================
@@ -90,13 +93,26 @@ export async function createActivityType(data: CreateActivityTypeRequest): Promi
   return http.post<ActivityTypeDto>('/activity-types', data);
 }
 
-export async function deactivateActivityType(id: string): Promise<void> {
+// ==================== Activity Units API ====================
+
+export async function getActivityUnits(): Promise<ActivityUnitDto[]> {
+  return http.get<ActivityUnitDto[]>('/activity-units');
+}
+
+export async function createActivityUnit(data: CreateActivityUnitRequest): Promise<ActivityUnitDto> {
+  return http.post<ActivityUnitDto>('/activity-units', data);
+}
+
+export async function updateActivityUnit(id: string, data: UpdateActivityUnitRequest): Promise<void> {
+  await http.put<void>(`/activity-units/${id}`, data);
+}
+
+export async function deactivateActivityUnit(id: string): Promise<void> {
   try {
-    await http.put<void>(`/activity-types/${id}/deactivate`);
+    await http.put<void>(`/activity-units/${id}/deactivate`);
   } catch (error: any) {
-    // Если 409 Conflict — передаём сообщение об ошибке
     if (error?.response?.status === 409) {
-      const detail = error?.response?.data?.message || 'Тип активности используется в других записях и не может быть деактивирован';
+      const detail = error?.response?.data?.message || 'Единица измерения используется в активных типах активностей';
       throw new Error(detail);
     }
     throw error;

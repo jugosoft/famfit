@@ -29,7 +29,8 @@ public static class ActivityTypeEndpoints
     public record ActivityTypeDto(
         Guid Id,
         string Name,
-        UnitType UnitType,
+        Guid ActivityUnitId,
+        string? UnitSymbol,
         bool IsActive,
         IReadOnlyList<AttributeValueDto> Attributes);
 
@@ -69,7 +70,8 @@ public static class ActivityTypeEndpoints
                 {
                     at.Id,
                     at.Name,
-                    at.UnitType,
+                    at.ActivityUnitId,
+                    at.ActivityUnit,
                     at.IsActive,
                     Attributes = at.ActivityTypeAttributeValues
                         .Where(atav => atav.AttributeValue != null)
@@ -92,7 +94,8 @@ public static class ActivityTypeEndpoints
             var result = types.Select(at => new ActivityTypeDto(
                 at.Id,
                 at.Name,
-                at.UnitType,
+                at.ActivityUnitId ?? Guid.Empty,
+                at.ActivityUnit != null ? at.ActivityUnit.Symbol : null,
                 at.IsActive,
                 at.Attributes.Select(a => new AttributeValueDto(
                     a.Id,
@@ -119,7 +122,7 @@ public static class ActivityTypeEndpoints
 
             return Results.Created(
                 $"/api/activity-types/{result.Id}",
-                new { result.Id, result.Name, result.UnitType });
+                new { result.Id, result.Name, result.ActivityUnitId });
         })
         .WithSummary("Создать новый тип активности")
         .WithDescription("Создаёт новый тип активности. Доступно только для FamilyAdmin.")

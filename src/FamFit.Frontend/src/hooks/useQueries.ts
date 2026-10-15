@@ -24,7 +24,11 @@ import {
   createWorkoutTemplate,
   addWorkoutTemplateItem,
   removeWorkoutTemplateItem,
-  deleteWorkoutTemplate
+  deleteWorkoutTemplate,
+  getActivityUnits,
+  createActivityUnit,
+  updateActivityUnit,
+  deactivateActivityUnit
 } from '@/api/client';
 import { ApiError } from '@/lib/errors';
 
@@ -57,6 +61,17 @@ export function useAttributeDefinitions() {
   return useQuery({
     queryKey: ['attribute-definitions'],
     queryFn: getActivityAttributeDefinitions,
+    staleTime: 1000 * 60 * 60,
+    gcTime: 1000 * 60 * 60 * 24
+  });
+}
+
+// ==================== Activity Units Queries ====================
+
+export function useActivityUnits() {
+  return useQuery({
+    queryKey: ['activity-units'],
+    queryFn: getActivityUnits,
     staleTime: 1000 * 60 * 60,
     gcTime: 1000 * 60 * 60 * 24
   });
@@ -125,6 +140,42 @@ export function useUpdateActivityTypeAttributes() {
       updateActivityTypeAttributes(data.activityTypeId, data.attributeValues),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activity-types'] });
+    }
+  });
+}
+
+// ==================== Activity Unit Mutations ====================
+
+export function useCreateActivityUnit() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: createActivityUnit,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activity-units'] });
+    }
+  });
+}
+
+export function useUpdateActivityUnitMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateActivityUnitRequest }) =>
+      updateActivityUnit(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activity-units'] });
+    }
+  });
+}
+
+export function useDeactivateActivityUnit() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deactivateActivityUnit,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activity-units'] });
     }
   });
 }
