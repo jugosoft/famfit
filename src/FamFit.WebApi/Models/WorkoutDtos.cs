@@ -13,18 +13,19 @@ public record CreateWorkoutTemplateRequest(
     string? Description = null);
 
 /// <summary>
+/// Ввод значения атрибута для шаблона.
+/// </summary>
+public record TemplateAttributeInput(
+    string DefinitionName,
+    int? IntValue,
+    decimal? DecimalValue,
+    bool? BoolValue,
+    string? StringValue);
+
+/// <summary>
 /// Запрос на добавление элемента в шаблон.
 /// </summary>
 public record AddWorkoutTemplateItemRequest(
     Guid ActivityTypeId,
-    int? Sets = null,
-    int? Reps = null,
-    int? Weight = null);
-
-/// <summary>
-/// Запрос на обновление атрибутов типа активности.
-/// </summary>
-public record UpdateActivityTypeAttributesRequest(
-    int? Sets = null,
-    int? Reps = null,
-    int? Weight = null);
+    IReadOnlyList<TemplateAttributeInput> AttributeValues,
+    int DisplayOrder = 0);

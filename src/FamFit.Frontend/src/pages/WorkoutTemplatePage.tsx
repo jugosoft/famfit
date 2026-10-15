@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dumbbell,
   Plus,
@@ -22,8 +22,10 @@ import {
   useRemoveWorkoutTemplateItem,
   useDeleteWorkoutTemplateMutation,
   useCreateWorkout,
-  useActivityTypes
+  useActivityTypes,
+  useAttributeDefinitions
 } from '@/hooks/useQueries';
+import type { AttributeInput } from '@/api/types';
 
 export function WorkoutTemplatePage() {
   const [showNewTemplate, setShowNewTemplate] = useState(false);
@@ -31,13 +33,12 @@ export function WorkoutTemplatePage() {
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateDesc, setNewTemplateDesc] = useState('');
   const [selectedActivityTypeId, setSelectedActivityTypeId] = useState('');
-  const [templateSets, setTemplateSets] = useState('');
-  const [templateReps, setTemplateReps] = useState('');
-  const [templateWeight, setTemplateWeight] = useState('');
+  const [attributeValues, setAttributeValues] = useState<Record<string, string>>({});
 
   const { data: templates, isLoading: templatesLoading, refetch: refetchTemplates } = useWorkoutTemplates();
   const { data: template, isLoading: templateLoading } = useWorkoutTemplate(selectedTemplateId ?? '');
   const { data: activityTypes } = useActivityTypes();
+  const { data: attributeDefinitions } = useAttributeDefinitions();
   const createTemplateMutation = useCreateWorkoutTemplate();
   const addTemplateItemMutation = useAddWorkoutTemplateItem();
   const removeTemplateItemMutation = useRemoveWorkoutTemplateItem();
@@ -45,6 +46,25 @@ export function WorkoutTemplatePage() {
   const createWorkoutMutation = useCreateWorkout();
 
   const selectedActivityType = activityTypes?.find(t => t.id === selectedActivityTypeId);
+
+  // Sync attribute values when activity type changes
+  useEffect(() => {
+    if (selectedActivityTypeId && attributeDefinitions) {
+      const selectedType = activityTypes?.find(t => t.id === selectedActivityTypeId);
+      const initialValues: Record<string, string> = {};
+      if (selectedType) {
+        for (const def of attributeDefinitions) {
+          const attr = selectedType.attributes.find(a => a.definitionName === def.name);
+          initialValues[def.name] = attr && attr.value !== null && attr.value !== undefined
+            ? String(attr.value)
+            : '';
+        }
+      }
+      setAttributeValues(initialValues);
+    } else {
+      setAttributeValues({});
+    }
+  }, [selectedActivityTypeId, activityTypes, attributeDefinitions]);
 
   function handleCreateTemplate() {
     if (!newTemplateName.trim()) {
@@ -76,21 +96,31 @@ export function WorkoutTemplatePage() {
       return;
     }
 
+    const attributeValuesToSend: AttributeInput[] = attributeDefinitions
+      ?.filter(def => attributeValues[def.name] !== undefined && attributeValues[def.name] !== '')
+      .map(def => ({
+        definitionName: def.name,
+        [def.dataType === 'Integer' ? 'intValue' : 
+         def.dataType === 'Decimal' ? 'decimalValue' :
+         def.dataType === 'Boolean' ? 'boolValue' : 'stringValue']:
+          def.dataType === 'Integer' ? parseInt(attributeValues[def.name] || '0') :
+          def.dataType === 'Decimal' ? parseFloat(attributeValues[def.name] || '0') :
+          def.dataType === 'Boolean' ? attributeValues[def.name]?.toLowerCase() === 'true' :
+          attributeValues[def.name]
+      })) || [];
+
     addTemplateItemMutation.mutate(
       {
         templateId: selectedTemplateId,
         activityTypeId: selectedActivityTypeId,
-        sets: templateSets ? parseInt(templateSets) : null,
-        reps: templateReps ? parseInt(templateReps) : null,
-        weight: templateWeight ? parseInt(templateWeight) : null
+        attributeValues: attributeValuesToSend,
+        displayOrder: (template?.items.length ?? 0) + 1
       },
       {
         onSuccess: () => {
           toast.success('Элемент добавлен');
           setSelectedActivityTypeId('');
-          setTemplateSets('');
-          setTemplateReps('');
-          setTemplateWeight('');
+          setAttributeValues({});
         },
         onError: (error: Error) => {
           toast.error('Ошибка', error.message);
@@ -145,8 +175,8 @@ export function WorkoutTemplatePage() {
     );
   }
 
-  function clearField(setter: (v: string) => void) {
-    setter('');
+  function clearField(defName: string) {
+    setAttributeValues(prev => ({ ...prev, [defName]: '' }));
   }
 
   return (
@@ -312,10 +342,14 @@ export function WorkoutTemplatePage() {
                               </div>
                               <div>
                                 <p className="font-medium text-sm">{item.activityType?.name ?? 'Неизвестно'}</p>
-                                <div className="flex gap-2 text-xs text-muted-foreground">
-                                  {item.sets && <Badge variant="secondary">Подходы: {item.sets}</Badge>}
-                                  {item.reps && <Badge variant="secondary">Повторения: {item.reps}</Badge>}
-                                  {item.weight && <Badge variant="secondary">Вес: {item.weight} кг</Badge>}
+                                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                  {item.attributes.map((attr) => (
+                                    <Badge key={attr.id} variant="secondary">
+                                      {attr.displayName}: {attr.value !== null && attr.value !== undefined
+                                        ? `${attr.value}${attr.unit ? ` ${attr.unit}` : ''}`
+                                        : '—'}
+                                    </Badge>
+                                  ))}
                                 </div>
                               </div>
                             </div>
@@ -351,78 +385,42 @@ export function WorkoutTemplatePage() {
                     </div>
                   </div>
 
-                  {/* Dynamic fields based on ActivityTypeAttributes */}
-                  {selectedActivityType?.attributes &&
-                    (selectedActivityType.attributes.sets || selectedActivityType.attributes.reps || selectedActivityType.attributes.weight) && (
-                      <div className="grid gap-4 md:grid-cols-3">
-                        {selectedActivityType.attributes.sets && (
-                          <div className="relative">
-                            <label className="text-sm font-medium leading-none">Подходы</label>
+                  {/* Dynamic fields based on ActivityType attributes */}
+                  {selectedActivityType && attributeDefinitions && (
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {selectedActivityType.attributes.map((attr) => {
+                        const def = attributeDefinitions.find(d => d.name === attr.definitionName);
+                        if (!def) return null;
+                        
+                        return (
+                          <div key={attr.id} className="relative">
+                            <label className="text-sm font-medium leading-none">
+                              {attr.displayName}
+                              {attr.unit && <span className="text-muted-foreground ml-1">({attr.unit})</span>}
+                            </label>
                             <div className="flex gap-2 mt-1">
                               <Input
-                                type="number"
-                                placeholder={selectedActivityType.attributes.sets?.toString() || ''}
-                                value={templateSets}
-                                onChange={(e) => setTemplateSets(e.target.value)}
-                                min="0"
+                                type={def.dataType === 'Integer' || def.dataType === 'Decimal' ? 'number' : 'text'}
+                                placeholder={attr.displayName}
+                                value={attributeValues[attr.definitionName] || ''}
+                                onChange={(e) => setAttributeValues(prev => ({ ...prev, [attr.definitionName]: e.target.value }))}
+                                step={def.dataType === 'Decimal' ? '0.1' : undefined}
+                                min={def.dataType === 'Integer' || def.dataType === 'Decimal' ? '0' : undefined}
                               />
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => clearField(setTemplateSets)}
+                                onClick={() => clearField(attr.definitionName)}
                                 className="shrink-0"
                               >
                                 <X className="h-4 w-4" />
                               </Button>
                             </div>
                           </div>
-                        )}
-                        {selectedActivityType.attributes.reps && (
-                          <div className="relative">
-                            <label className="text-sm font-medium leading-none">Повторения</label>
-                            <div className="flex gap-2 mt-1">
-                              <Input
-                                type="number"
-                                placeholder={selectedActivityType.attributes.reps?.toString() || ''}
-                                value={templateReps}
-                                onChange={(e) => setTemplateReps(e.target.value)}
-                                min="0"
-                              />
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => clearField(setTemplateReps)}
-                                className="shrink-0"
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                        {selectedActivityType.attributes.weight && (
-                          <div className="relative">
-                            <label className="text-sm font-medium leading-none">Вес (кг)</label>
-                            <div className="flex gap-2 mt-1">
-                              <Input
-                                type="number"
-                                placeholder={selectedActivityType.attributes.weight?.toString() || ''}
-                                value={templateWeight}
-                                onChange={(e) => setTemplateWeight(e.target.value)}
-                                min="0"
-                              />
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => clearField(setTemplateWeight)}
-                                className="shrink-0"
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                        );
+                      })}
+                    </div>
+                  )}
 
                   <Button
                     onClick={handleAddItem}

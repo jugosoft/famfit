@@ -1,5 +1,6 @@
 using FamFit.Application.Commands.Workouts;
 using FamFit.Application.Queries.Workouts;
+using FamFit.Domain.Enums;
 using FamFit.Infrastructure.Data;
 using FamFit.WebApi.Models;
 using MediatR;
@@ -14,6 +15,22 @@ namespace FamFit.WebApi.Endpoints;
 /// </summary>
 public static class WorkoutEndpoints
 {
+    // DTO для значения атрибута записи тренировки
+    public record EntryAttributeValueDto(
+        Guid Id,
+        string DefinitionName,
+        string DisplayName,
+        AttributeDataType DataType,
+        string? Unit,
+        object? Value);
+
+    // DTO для записи тренировки
+    public record WorkoutEntryDto(
+        Guid Id,
+        Guid ActivityTypeId,
+        IReadOnlyList<EntryAttributeValueDto> Attributes,
+        object? ActivityType);
+
     public static IEndpointRouteBuilder MapWorkoutEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/workouts")
@@ -34,6 +51,29 @@ public static class WorkoutEndpoints
             if (result.UserId != userId)
                 return Results.StatusCode(403);
 
+            var entries = result.Entries.Select(e => new WorkoutEntryDto(
+                e.Id,
+                e.ActivityTypeId,
+                e.WorkoutEntryAttributeValues
+                    .Where(aw => aw.AttributeValue != null)
+                    .OrderBy(aw => aw.AttributeValue!.Definition!.DisplayOrder)
+                    .ThenBy(aw => aw.AttributeValue!.Definition!.Name)
+                    .Select(aw => new EntryAttributeValueDto(
+                        aw.AttributeValue!.Id,
+                        aw.AttributeValue!.Definition!.Name,
+                        aw.AttributeValue!.Definition!.DisplayName,
+                        aw.AttributeValue!.Definition!.DataType,
+                        aw.AttributeValue!.Definition!.Unit,
+                        aw.AttributeValue!.GetValue()))
+                    .ToList(),
+                e.ActivityType != null ? new
+                {
+                    e.ActivityType.Id,
+                    e.ActivityType.Name,
+                    e.ActivityType.UnitType
+                } : null))
+                .ToList();
+
             return Results.Ok(new
             {
                 result.Id,
@@ -42,20 +82,7 @@ public static class WorkoutEndpoints
                 result.StartTime,
                 result.EndTime,
                 result.IsCompleted,
-                Entries = result.Entries.Select(e => new
-                {
-                    e.Id,
-                    e.ActivityTypeId,
-                    e.Sets,
-                    e.Reps,
-                    e.Weight,
-                    ActivityType = new
-                    {
-                        e.ActivityType!.Id,
-                        e.ActivityType.Name,
-                        e.ActivityType.UnitType
-                    }
-                })
+                Entries = entries
             });
         })
         .WithSummary("Получить тренировку по ID")
@@ -146,10 +173,7 @@ public static class WorkoutEndpoints
                 {
                     result.Id,
                     result.WorkoutId,
-                    result.ActivityTypeId,
-                    result.Sets,
-                    result.Reps,
-                    result.Weight
+                    result.ActivityTypeId
                 });
         })
         .WithSummary("Добавить запись в тренировку")

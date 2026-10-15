@@ -4,6 +4,7 @@ namespace FamFit.Domain.Entities;
 
 /// <summary>
 /// Справочный тип активности (например: «Отжимания», «Бег», «Планка»).
+/// Атрибуты хранятся через гибкую систему ActivityTypeAttributeValue.
 /// </summary>
 public sealed class ActivityType
 {
@@ -12,8 +13,8 @@ public sealed class ActivityType
     public UnitType UnitType { get; private set; } = UnitType.Count;
     public bool IsActive { get; private set; } = true;
 
-    // Navigation property
-    public ActivityTypeAttributes? ActivityTypeAttributes { get; private set; }
+    // Navigation properties
+    public ICollection<ActivityTypeAttributeValue> ActivityTypeAttributeValues { get; private set; } = new List<ActivityTypeAttributeValue>();
 
     // EF Core parameterless constructor
     private ActivityType() { }

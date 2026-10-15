@@ -14,6 +14,12 @@ export class ApiError extends Error {
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 /**
+ * Dispatched when a 401 Unauthorized response is received.
+ * AuthContext listens for this and clears auth state.
+ */
+const UNAUTHORIZED_EVENT = 'famfit:unauthorized';
+
+/**
  * HTTP client for API requests.
  */
 export const http = {
@@ -37,6 +43,14 @@ export const http = {
     }
 
     const response = await fetch(`${BASE_URL}${url}`, config);
+
+    if (response.status === 401) {
+      // Token expired or invalid — notify auth context to clear state
+      window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+      localStorage.removeItem('famfit_token');
+      localStorage.removeItem('famfit_user');
+      throw new ApiError(401, 'Unauthorized');
+    }
 
     if (!response.ok) {
       const detail = await response.text().catch(() => null);

@@ -1,5 +1,6 @@
 using FamFit.Application.Commands.WorkoutTemplates;
 using FamFit.Application.Queries.WorkoutTemplates;
+using FamFit.Domain.Enums;
 using FamFit.Infrastructure.Data;
 using FamFit.WebApi.Models;
 using MediatR;
@@ -13,6 +14,23 @@ namespace FamFit.WebApi.Endpoints;
 /// </summary>
 public static class WorkoutTemplateEndpoints
 {
+    // DTO для значения атрибута элемента шаблона
+    public record TemplateItemAttributeValueDto(
+        Guid Id,
+        string DefinitionName,
+        string DisplayName,
+        AttributeDataType DataType,
+        string? Unit,
+        object? Value);
+
+    // DTO для элемента шаблона
+    public record WorkoutTemplateItemDto(
+        Guid Id,
+        Guid ActivityTypeId,
+        int DisplayOrder,
+        IReadOnlyList<TemplateItemAttributeValueDto> Attributes,
+        object? ActivityType);
+
     public static IEndpointRouteBuilder MapWorkoutTemplateEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/workout-templates")
@@ -56,27 +74,37 @@ public static class WorkoutTemplateEndpoints
             if (result.UserId != userId)
                 return Results.StatusCode(403);
 
+            var items = result.Items.Select(i => new WorkoutTemplateItemDto(
+                i.Id,
+                i.ActivityTypeId,
+                i.DisplayOrder,
+                i.WorkoutTemplateItemAttributeValues
+                    .Where(awi => awi.AttributeValue != null)
+                    .OrderBy(awi => awi.AttributeValue!.Definition!.DisplayOrder)
+                    .ThenBy(awi => awi.AttributeValue!.Definition!.Name)
+                    .Select(awi => new TemplateItemAttributeValueDto(
+                        awi.AttributeValue!.Id,
+                        awi.AttributeValue!.Definition!.Name,
+                        awi.AttributeValue!.Definition!.DisplayName,
+                        awi.AttributeValue!.Definition!.DataType,
+                        awi.AttributeValue!.Definition!.Unit,
+                        awi.AttributeValue!.GetValue()))
+                    .ToList(),
+                i.ActivityType != null ? new
+                {
+                    i.ActivityType.Id,
+                    i.ActivityType.Name,
+                    i.ActivityType.UnitType
+                } : null))
+                .ToList();
+
             return Results.Ok(new
             {
                 result.Id,
                 result.UserId,
                 result.Name,
                 result.Description,
-                Items = result.Items.OrderBy(i => i.DisplayOrder).Select(i => new
-                {
-                    i.Id,
-                    i.ActivityTypeId,
-                    i.Sets,
-                    i.Reps,
-                    i.Weight,
-                    i.DisplayOrder,
-                    ActivityType = new
-                    {
-                        i.ActivityType!.Id,
-                        i.ActivityType.Name,
-                        i.ActivityType.UnitType
-                    }
-                })
+                Items = items.OrderBy(i => i.DisplayOrder)
             });
         })
         .WithSummary("Получить шаблон тренировки по ID")
@@ -136,9 +164,13 @@ public static class WorkoutTemplateEndpoints
             var result = await mediator.Send(new AddWorkoutTemplateItemCommand(
                 id,
                 request.ActivityTypeId,
-                request.Sets,
-                request.Reps,
-                request.Weight));
+                request.AttributeValues.Select(av => new Application.Commands.ActivityAttributes.AttributeValueInput(
+                    av.DefinitionName,
+                    av.IntValue,
+                    av.DecimalValue,
+                    av.BoolValue,
+                    av.StringValue)).ToList(),
+                request.DisplayOrder));
 
             return Results.Created(
                 $"/api/workout-templates/{id}/items/{result.Id}",
@@ -147,14 +179,11 @@ public static class WorkoutTemplateEndpoints
                     result.Id,
                     result.TemplateId,
                     result.ActivityTypeId,
-                    result.Sets,
-                    result.Reps,
-                    result.Weight,
                     result.DisplayOrder
                 });
         })
         .WithSummary("Добавить элемент в шаблон")
-        .WithDescription("Добавляет тип активности в шаблон с дефолтными значениями.")
+        .WithDescription("Добавляет тип активности в шаблон с атрибутами.")
         .RequireAuthorization()
         .Produces<object>(StatusCodes.Status201Created)
         .Produces(StatusCodes.Status404NotFound)
@@ -188,7 +217,7 @@ public static class WorkoutTemplateEndpoints
         .Produces(StatusCodes.Status404NotFound)
         .Produces(StatusCodes.Status403Forbidden);
 
-        // DELETE /api/workout-templates/{id}/items/{activityTypeId} — удалить элемент
+        // DELETE /api/workout-templates/{id}/items/{activityTypeId:guid} — удалить элемент
         group.MapDelete("/{id:guid}/items/{activityTypeId:guid}", async (
             Guid id,
             Guid activityTypeId,

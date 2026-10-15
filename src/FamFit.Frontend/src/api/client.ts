@@ -8,6 +8,8 @@ import type {
   ActivityTypeDto,
   CreateActivityTypeRequest,
   UpdateActivityTypeAttributesRequest,
+  AttributeInput,
+  AttributeDefinitionDto,
   ActivityLogDto,
   LogActivityRequest,
   PagedResponse,
@@ -20,7 +22,8 @@ import type {
   WorkoutTemplateDto,
   WorkoutTemplateListDto,
   CreateWorkoutTemplateRequest,
-  AddWorkoutTemplateItemRequest
+  AddWorkoutTemplateItemRequest,
+  TemplateAttributeInput
 } from '@/api/types';
 
 // ==================== Auth API ====================
@@ -64,6 +67,10 @@ export async function getMe(): Promise<UserDto> {
 
 export async function getActivityTypes(): Promise<ActivityTypeDto[]> {
   return http.get<ActivityTypeDto[]>('/activity-types');
+}
+
+export async function getActivityAttributeDefinitions(): Promise<AttributeDefinitionDto[]> {
+  return http.get<AttributeDefinitionDto[]>('/activity-types/definitions');
 }
 
 export async function createActivityType(data: CreateActivityTypeRequest): Promise<ActivityTypeDto> {
@@ -114,9 +121,11 @@ export async function getVapidPublicKey(): Promise<VapidPublicKeyResponse> {
 
 export async function updateActivityTypeAttributes(
   activityTypeId: string,
-  data: UpdateActivityTypeAttributesRequest
+  data: AttributeInput[]
 ): Promise<void> {
-  await http.put<void>(`/activity-types/${activityTypeId}/attributes`, data);
+  await http.put<void>(`/activity-types/${activityTypeId}/attributes`, {
+    attributeValues: data
+  });
 }
 
 // ==================== Workout API ====================
@@ -135,9 +144,12 @@ export async function createWorkout(data: CreateWorkoutRequest): Promise<Workout
 
 export async function addWorkoutEntry(
   workoutId: string,
-  data: { activityTypeId: string; sets?: number | null; reps?: number | null; weight?: number | null }
+  data: { activityTypeId: string; attributeValues: AttributeInput[] }
 ): Promise<void> {
-  await http.post<void>(`/workouts/${workoutId}/entries`, data);
+  await http.post<void>(`/workouts/${workoutId}/entries`, {
+    activityTypeId: data.activityTypeId,
+    attributeValues: data.attributeValues
+  });
 }
 
 export async function completeWorkout(id: string): Promise<void> {

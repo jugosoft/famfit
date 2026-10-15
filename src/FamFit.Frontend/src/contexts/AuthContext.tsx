@@ -67,6 +67,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState(prev => ({ ...prev, isLoading: false }));
   }, [setUser]);
 
+  // Listen for token expiration events from http client
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      clearAuth();
+    };
+
+    window.addEventListener('famfit:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('famfit:unauthorized', handleUnauthorized);
+  }, [clearAuth]);
+
   return (
     <AuthContext.Provider value={{ ...state, setUser, setLoading, setError, clearAuth, refetch }}>
       {children}

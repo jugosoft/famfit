@@ -61,25 +61,45 @@ export interface ChangePasswordRequest {
  */
 
 export type UnitType = 'Count' | 'Time';
+export type AttributeDataType = 'Integer' | 'Decimal' | 'Boolean' | 'String';
+
+export interface AttributeValueDto {
+  id: string;
+  definitionName: string;
+  displayName: string;
+  dataType: AttributeDataType;
+  unit?: string | null;
+  value: unknown;
+}
 
 export interface ActivityTypeDto {
   id: string;
   name: string;
   unitType: UnitType;
   isActive?: boolean;
-  attributes?: ActivityTypeAttributesDto;
+  attributes: AttributeValueDto[];
 }
 
-export interface ActivityTypeAttributesDto {
-  sets?: number | null;
-  reps?: number | null;
-  weight?: number | null;
+export interface AttributeDefinitionDto {
+  id: string;
+  name: string;
+  displayName: string;
+  dataType: AttributeDataType;
+  unit?: string | null;
+  isActive: boolean;
+  displayOrder: number;
+}
+
+export interface AttributeInput {
+  definitionName: string;
+  intValue?: number | null;
+  decimalValue?: number | null;
+  boolValue?: boolean | null;
+  stringValue?: string | null;
 }
 
 export interface UpdateActivityTypeAttributesRequest {
-  sets?: number | null;
-  reps?: number | null;
-  weight?: number | null;
+  attributeValues: AttributeInput[];
 }
 
 export interface CreateActivityTypeRequest {
@@ -140,12 +160,19 @@ export interface VapidPublicKeyResponse {
  * ==================== Workout ====================
  */
 
+export interface WorkoutEntryAttributeValueDto {
+  id: string;
+  definitionName: string;
+  displayName: string;
+  dataType: AttributeDataType;
+  unit?: string | null;
+  value: unknown;
+}
+
 export interface WorkoutEntryDto {
   id: string;
   activityTypeId: string;
-  sets?: number | null;
-  reps?: number | null;
-  weight?: number | null;
+  attributes: WorkoutEntryAttributeValueDto[];
   activityType?: ActivityTypeDto;
 }
 
@@ -175,13 +202,20 @@ export interface CreateWorkoutRequest {
  * ==================== WorkoutTemplate ====================
  */
 
+export interface WorkoutTemplateItemAttributeValueDto {
+  id: string;
+  definitionName: string;
+  displayName: string;
+  dataType: AttributeDataType;
+  unit?: string | null;
+  value: unknown;
+}
+
 export interface WorkoutTemplateItemDto {
   id: string;
   activityTypeId: string;
-  sets?: number | null;
-  reps?: number | null;
-  weight?: number | null;
   displayOrder: number;
+  attributes: WorkoutTemplateItemAttributeValueDto[];
   activityType?: ActivityTypeDto;
 }
 
@@ -205,9 +239,16 @@ export interface CreateWorkoutTemplateRequest {
   description?: string | null;
 }
 
+export interface TemplateAttributeInput {
+  definitionName: string;
+  intValue?: number | null;
+  decimalValue?: number | null;
+  boolValue?: boolean | null;
+  stringValue?: string | null;
+}
+
 export interface AddWorkoutTemplateItemRequest {
   activityTypeId: string;
-  sets?: number | null;
-  reps?: number | null;
-  weight?: number | null;
+  attributeValues: TemplateAttributeInput[];
+  displayOrder?: number;
 }

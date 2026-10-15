@@ -5,6 +5,7 @@ import {
 } from '@tanstack/react-query';
 import {
   getActivityTypes,
+  getActivityAttributeDefinitions,
   getActivityLogs,
   logActivity,
   logActivityWithNotification,
@@ -49,6 +50,15 @@ export function useActivityTypes() {
     queryFn: getActivityTypes,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 30
+  });
+}
+
+export function useAttributeDefinitions() {
+  return useQuery({
+    queryKey: ['attribute-definitions'],
+    queryFn: getActivityAttributeDefinitions,
+    staleTime: 1000 * 60 * 60,
+    gcTime: 1000 * 60 * 60 * 24
   });
 }
 
@@ -111,8 +121,8 @@ export function useUpdateActivityTypeAttributes() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { activityTypeId: string; sets?: number | null; reps?: number | null; weight?: number | null }) =>
-      updateActivityTypeAttributes(data.activityTypeId, { sets: data.sets, reps: data.reps, weight: data.weight }),
+    mutationFn: (data: { activityTypeId: string; attributeValues: { definitionName: string; intValue?: number | null; decimalValue?: number | null; boolValue?: boolean | null; stringValue?: string | null }[] }) =>
+      updateActivityTypeAttributes(data.activityTypeId, data.attributeValues),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activity-types'] });
     }
@@ -155,8 +165,8 @@ export function useAddWorkoutEntry() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { workoutId: string; activityTypeId: string; sets?: number | null; reps?: number | null; weight?: number | null }) =>
-      addWorkoutEntry(data.workoutId, { activityTypeId: data.activityTypeId, sets: data.sets, reps: data.reps, weight: data.weight }),
+    mutationFn: (data: { workoutId: string; activityTypeId: string; attributeValues: { definitionName: string; intValue?: number | null; decimalValue?: number | null; boolValue?: boolean | null; stringValue?: string | null }[] }) =>
+      addWorkoutEntry(data.workoutId, { activityTypeId: data.activityTypeId, attributeValues: data.attributeValues }),
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ['workout', vars.workoutId] });
     }
@@ -221,12 +231,11 @@ export function useAddWorkoutTemplateItem() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { templateId: string; activityTypeId: string; sets?: number | null; reps?: number | null; weight?: number | null }) =>
+    mutationFn: (data: { templateId: string; activityTypeId: string; attributeValues: { definitionName: string; intValue?: number | null; decimalValue?: number | null; boolValue?: boolean | null; stringValue?: string | null }[]; displayOrder?: number }) =>
       addWorkoutTemplateItem(data.templateId, {
         activityTypeId: data.activityTypeId,
-        sets: data.sets,
-        reps: data.reps,
-        weight: data.weight
+        attributeValues: data.attributeValues,
+        displayOrder: data.displayOrder ?? 0
       }),
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ['workout-template', vars.templateId] });

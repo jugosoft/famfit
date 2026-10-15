@@ -29,6 +29,10 @@ public class GetWorkoutHandler : IRequestHandler<GetWorkoutQuery, Workout>
         var workout = await _dbContext.Workouts
             .Include(w => w.Entries)
                 .ThenInclude(e => e.ActivityType)
+            .Include(w => w.Entries)
+                .ThenInclude(e => e.WorkoutEntryAttributeValues)
+                    .ThenInclude(aw => aw.AttributeValue)
+                        .ThenInclude(av => av!.Definition)
             .FirstOrDefaultAsync(w => w.Id == request.WorkoutId, cancellationToken);
 
         if (workout is null)

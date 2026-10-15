@@ -29,6 +29,10 @@ public class GetWorkoutTemplateHandler : IRequestHandler<GetWorkoutTemplateQuery
         var template = await _dbContext.WorkoutTemplates
             .Include(t => t.Items)
                 .ThenInclude(i => i.ActivityType)
+            .Include(t => t.Items)
+                .ThenInclude(i => i.WorkoutTemplateItemAttributeValues)
+                    .ThenInclude(awi => awi.AttributeValue)
+                        .ThenInclude(av => av!.Definition)
             .FirstOrDefaultAsync(t => t.Id == request.TemplateId, cancellationToken);
 
         if (template is null)

@@ -23,14 +23,14 @@ import {
   useAddWorkoutEntry,
   useCompleteWorkout,
   useDeleteWorkoutMutation,
-  useActivityTypes
+  useActivityTypes,
+  useAttributeDefinitions
 } from '@/hooks/useQueries';
+import type { AttributeInput } from '@/api/types';
 
 interface WorkoutEntryForm {
   activityTypeId: string;
-  sets: string;
-  reps: string;
-  weight: string;
+  attributeValues: Record<string, string>;
 }
 
 export function WorkoutPage() {
@@ -39,13 +39,12 @@ export function WorkoutPage() {
   const [activeWorkoutId, setActiveWorkoutId] = useState<string | null>(null);
   const [entryForm, setEntryForm] = useState<WorkoutEntryForm>({
     activityTypeId: '',
-    sets: '',
-    reps: '',
-    weight: ''
+    attributeValues: {}
   });
 
   const { data: workouts, isLoading: workoutsLoading, refetch } = useWorkouts();
   const { data: activityTypes } = useActivityTypes();
+  const { data: attributeDefinitions } = useAttributeDefinitions();
   const createWorkoutMutation = useCreateWorkout();
   const addEntryMutation = useAddWorkoutEntry();
   const completeWorkoutMutation = useCompleteWorkout();
@@ -60,6 +59,25 @@ export function WorkoutPage() {
       setActiveWorkoutId(activeWorkout.id);
     }
   }, [activeWorkout?.id]);
+
+  // Sync attribute values when activity type changes
+  useEffect(() => {
+    if (entryForm.activityTypeId && attributeDefinitions) {
+      const selectedType = activityTypes?.find(t => t.id === entryForm.activityTypeId);
+      const initialValues: Record<string, string> = {};
+      if (selectedType) {
+        for (const def of attributeDefinitions) {
+          const attr = selectedType.attributes.find(a => a.definitionName === def.name);
+          initialValues[def.name] = attr && attr.value !== null && attr.value !== undefined
+            ? String(attr.value)
+            : '';
+        }
+      }
+      setEntryForm(prev => ({ ...prev, attributeValues: initialValues }));
+    } else {
+      setEntryForm(prev => ({ ...prev, attributeValues: {} }));
+    }
+  }, [entryForm.activityTypeId, activityTypes, attributeDefinitions]);
 
   function handleCreateWorkout() {
     if (!newWorkoutName.trim()) {
@@ -90,18 +108,29 @@ export function WorkoutPage() {
       return;
     }
 
+    const attributeValues: AttributeInput[] = attributeDefinitions
+      ?.filter(def => entryForm.attributeValues[def.name] !== undefined && entryForm.attributeValues[def.name] !== '')
+      .map(def => ({
+        definitionName: def.name,
+        [def.dataType === 'Integer' ? 'intValue' : 
+         def.dataType === 'Decimal' ? 'decimalValue' :
+         def.dataType === 'Boolean' ? 'boolValue' : 'stringValue']:
+          def.dataType === 'Integer' ? parseInt(entryForm.attributeValues[def.name] || '0') :
+          def.dataType === 'Decimal' ? parseFloat(entryForm.attributeValues[def.name] || '0') :
+          def.dataType === 'Boolean' ? entryForm.attributeValues[def.name]?.toLowerCase() === 'true' :
+          entryForm.attributeValues[def.name]
+      })) || [];
+
     addEntryMutation.mutate(
       {
         workoutId: activeWorkout.id,
         activityTypeId: entryForm.activityTypeId,
-        sets: entryForm.sets ? parseInt(entryForm.sets) : null,
-        reps: entryForm.reps ? parseInt(entryForm.reps) : null,
-        weight: entryForm.weight ? parseInt(entryForm.weight) : null
+        attributeValues
       },
       {
         onSuccess: () => {
           toast.success('Запись добавлена');
-          setEntryForm({ activityTypeId: '', sets: '', reps: '', weight: '' });
+          setEntryForm({ activityTypeId: '', attributeValues: {} });
           refetch();
         },
         onError: (error: Error) => {
@@ -141,10 +170,14 @@ export function WorkoutPage() {
     });
   }
 
-  // Get attributes for selected activity type
+  function clearField(defName: string) {
+    setEntryForm(prev => ({
+      ...prev,
+      attributeValues: { ...prev.attributeValues, [defName]: '' }
+    }));
+  }
+
   const selectedActivityType = activityTypes?.find(t => t.id === entryForm.activityTypeId);
-  const hasAttributes = selectedActivityType?.attributes &&
-    (selectedActivityType.attributes.sets || selectedActivityType.attributes.reps || selectedActivityType.attributes.weight);
 
   return (
     <div className="space-y-6">
@@ -243,72 +276,43 @@ export function WorkoutPage() {
                 </div>
               </div>
 
-              {/* Dynamic fields based on ActivityTypeAttributes */}
-              {hasAttributes && (
-                <div className="grid gap-4 md:grid-cols-3">
-                  {selectedActivityType?.attributes?.sets && (
-                    <div>
-                      <label className="text-sm font-medium leading-none">Подходы</label>
-                      <Input
-                        type="number"
-                        placeholder="3"
-                        value={entryForm.sets}
-                        onChange={(e) => setEntryForm(f => ({ ...f, sets: e.target.value }))}
-                        min="0"
-                        className="mt-1"
-                      />
-                    </div>
-                  )}
-                  {selectedActivityType?.attributes?.reps && (
-                    <div>
-                      <label className="text-sm font-medium leading-none">Повторения</label>
-                      <Input
-                        type="number"
-                        placeholder="15"
-                        value={entryForm.reps}
-                        onChange={(e) => setEntryForm(f => ({ ...f, reps: e.target.value }))}
-                        min="0"
-                        className="mt-1"
-                      />
-                    </div>
-                  )}
-                  {selectedActivityType?.attributes?.weight && (
-                    <div>
-                      <label className="text-sm font-medium leading-none">Вес (кг)</label>
-                      <Input
-                        type="number"
-                        placeholder="10"
-                        value={entryForm.weight}
-                        onChange={(e) => setEntryForm(f => ({ ...f, weight: e.target.value }))}
-                        min="0"
-                        className="mt-1"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Fallback: single value field if no attributes */}
-              {!hasAttributes && selectedActivityType && (
-                <div>
-                  <label className="text-sm font-medium leading-none">
-                    {selectedActivityType.unitType === 'Count' ? 'Количество' : 'Минуты'}
-                  </label>
-                  <Input
-                    type="number"
-                    placeholder={selectedActivityType.unitType === 'Count' ? 'Количество' : 'Минуты'}
-                    value={entryForm.sets || entryForm.reps}
-                    onChange={(e) => {
-                      if (selectedActivityType.unitType === 'Count') {
-                        setEntryForm(f => ({ ...f, reps: e.target.value }));
-                      } else {
-                        setEntryForm(f => ({ ...f, sets: e.target.value }));
-                      }
-                    }}
-                    min="0"
-                    step="0.1"
-                    className="mt-1"
-                  />
+              {/* Dynamic fields based on ActivityType attributes */}
+              {selectedActivityType && attributeDefinitions && (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {selectedActivityType.attributes.map((attr) => {
+                    const def = attributeDefinitions.find(d => d.name === attr.definitionName);
+                    if (!def) return null;
+                    
+                    return (
+                      <div key={attr.id} className="relative">
+                        <label className="text-sm font-medium leading-none">
+                          {attr.displayName}
+                          {attr.unit && <span className="text-muted-foreground ml-1">({attr.unit})</span>}
+                        </label>
+                        <div className="flex gap-2 mt-1">
+                          <Input
+                            type={def.dataType === 'Integer' || def.dataType === 'Decimal' ? 'number' : 'text'}
+                            placeholder={attr.displayName}
+                            value={entryForm.attributeValues[attr.definitionName] || ''}
+                            onChange={(e) => setEntryForm(f => ({
+                              ...f,
+                              attributeValues: { ...f.attributeValues, [attr.definitionName]: e.target.value }
+                            }))}
+                            step={def.dataType === 'Decimal' ? '0.1' : undefined}
+                            min={def.dataType === 'Integer' || def.dataType === 'Decimal' ? '0' : undefined}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => clearField(attr.definitionName)}
+                            className="shrink-0"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 

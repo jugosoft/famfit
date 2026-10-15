@@ -40,33 +40,104 @@ public static class DbSeeder
             logger.LogInformation("Seeded admin user: {Email}", admin.Email);
         }
 
+        // Seed: Attribute Definitions (справочник определений атрибутов)
+        if (!await dbContext.ActivityAttributeDefinitions.AnyAsync())
+        {
+            var defaultDefinitions = new (string Name, string DisplayName, AttributeDataType DataType, string? Unit, int DisplayOrder)[]
+            {
+                ("Sets", "Подходы", AttributeDataType.Integer, null, 1),
+                ("Reps", "Повторения", AttributeDataType.Integer, null, 2),
+                ("Weight", "Вес", AttributeDataType.Decimal, "кг", 3),
+                ("Distance", "Дистанция", AttributeDataType.Decimal, "км", 4),
+                ("Time", "Время", AttributeDataType.Decimal, "мин", 5),
+                ("Custom", "Произвольное", AttributeDataType.String, null, 6)
+            };
+
+            foreach (var (Name, DisplayName, DataType, Unit, DisplayOrder) in defaultDefinitions)
+            {
+                var definition = ActivityAttributeDefinition.Create(
+                    Name, DisplayName, DataType, Unit, DisplayOrder);
+                dbContext.ActivityAttributeDefinitions.Add(definition);
+            }
+
+            await dbContext.SaveChangesAsync();
+
+            logger.LogInformation("Seeded {Count} attribute definitions", defaultDefinitions.Length);
+        }
+
         // Seed: Activity Types
         if (!await dbContext.ActivityTypes.AnyAsync())
         {
-            var defaultTypes = new (string Name, UnitType UnitType, int? Sets, int? Reps, int? Weight)[]
+            var defaultTypes = new (string Name, UnitType UnitType, (string DefName, object Value)[] Attributes)[]
             {
-                ("Отжимания", UnitType.Count, 3, 15, null),
-                ("Приседания", UnitType.Count, 4, 20, null),
-                ("Планка", UnitType.Time, null, null, null),
-                ("Бег", UnitType.Time, null, null, null),
-                ("Велосипед", UnitType.Time, null, null, null),
-                ("Жим гантелей лёжа", UnitType.Count, 4, 12, 10),
-                ("Скручивания", UnitType.Count, 3, 20, null),
-                ("Бёрпи", UnitType.Count, 3, 10, null)
+                ("Отжимания", UnitType.Count, new (string DefName, object Value)[] {
+                    (DefName: "Sets", Value: 3),
+                    (DefName: "Reps", Value: 15),
+                    (DefName: "Weight", Value: 20)
+                }),
+                ("Приседания", UnitType.Count, new (string DefName, object Value)[] {
+                    (DefName: "Sets", Value: 4),
+                    (DefName: "Reps", Value: 20),
+                    (DefName: "Weight", Value: 30)
+                }),
+                ("Планка", UnitType.Time, new (string DefName, object Value)[] {
+                    (DefName: "Time", Value: 30)
+                }),
+                ("Бег", UnitType.Time, new (string DefName, object Value)[] {
+                    (DefName: "Time", Value: 30),
+                    (DefName: "Distance", Value: 5)
+                }),
+                ("Велосипед", UnitType.Time, new (string DefName, object Value)[] {
+                    (DefName: "Time", Value: 45),
+                    (DefName: "Distance", Value: 20)
+                }),
+                ("Жим гантелей лёжа", UnitType.Count, new (string DefName, object Value)[] {
+                    (DefName: "Sets", Value: 4),
+                    (DefName: "Reps", Value: 12),
+                    (DefName: "Weight", Value: 10m)
+                }),
+                ("Скручивания", UnitType.Count, new (string DefName, object Value)[] {
+                    (DefName: "Sets", Value: 3),
+                    (DefName: "Reps", Value: 20),
+                    (DefName: "Weight", Value:16)
+                }),
+                ("Бёрпи", UnitType.Count, new (string DefName, object Value)[] {
+                    (DefName: "Sets", Value: 3),
+                    (DefName: "Reps", Value: 10),
+                    (DefName: "Weight", Value: 16)
+                })
             };
 
-            foreach (var (Name, UnitType, Sets, Reps, Weight) in defaultTypes)
+            // Создаём словарь для маппинга определений
+            var definitions = await dbContext.ActivityAttributeDefinitions
+                .ToDictionaryAsync(d => d.Name);
+
+            foreach (var (Name, UnitType, Attributes) in defaultTypes)
             {
                 var activityType = ActivityType.Create(Name, UnitType);
                 dbContext.ActivityTypes.Add(activityType);
                 await dbContext.SaveChangesAsync();
 
-                // Создаём атрибуты если они есть
-                if (Sets.HasValue || Reps.HasValue || Weight.HasValue)
+                // Создаём значения атрибутов и привязываем к ActivityType
+                foreach (var (DefName, Value) in Attributes)
                 {
-                    var attributes = ActivityTypeAttributes.Create(
-                        activityType.Id, Sets, Reps, Weight);
-                    dbContext.ActivityTypeAttributes.Add(attributes);
+                    if (!definitions.TryGetValue(DefName, out var definition))
+                        continue;
+
+                    ActivityAttributeValue attributeValue = Value switch
+                    {
+                        int intValue => ActivityAttributeValue.Create(definition.Id, intValue: intValue),
+                        decimal decimalValue => ActivityAttributeValue.Create(definition.Id, decimalValue: decimalValue),
+                        null => ActivityAttributeValue.Create(definition.Id),
+                        string strValue => ActivityAttributeValue.Create(definition.Id, stringValue: strValue),
+                        _ => ActivityAttributeValue.Create(definition.Id, stringValue: Value.ToString())
+                    };
+
+                    dbContext.AttributeValues.Add(attributeValue);
+                    await dbContext.SaveChangesAsync();
+
+                    dbContext.ActivityTypeAttributeValues.Add(
+                        ActivityTypeAttributeValue.Create(activityType.Id, attributeValue.Id));
                     await dbContext.SaveChangesAsync();
                 }
             }
@@ -112,34 +183,90 @@ public static class DbSeeder
             dbContext.WorkoutTemplates.Add(template);
             await dbContext.SaveChangesAsync();
 
-            // Добавляем элементы в шаблон
+            // Создаём элементы шаблона с атрибутами
             if (pushupsId != Guid.Empty)
             {
-                dbContext.WorkoutTemplateItems.Add(WorkoutTemplateItem.Create(
-                    template.Id, pushupsId, sets: 3, reps: 15, weight: null, displayOrder: 1));
+                var item = WorkoutTemplateItem.Create(template.Id, pushupsId, displayOrder: 1);
+                dbContext.WorkoutTemplateItems.Add(item);
+                await dbContext.SaveChangesAsync();
+
+                await AddTemplateItemAttributes(dbContext, item.Id, new (string DefName, object Value)[] {
+                    (DefName: "Sets", Value: 3),
+                    (DefName: "Reps", Value: 15)
+                });
             }
 
             if (squatsId != Guid.Empty)
             {
-                dbContext.WorkoutTemplateItems.Add(WorkoutTemplateItem.Create(
-                    template.Id, squatsId, sets: 4, reps: 20, weight: null, displayOrder: 2));
+                var item = WorkoutTemplateItem.Create(template.Id, squatsId, displayOrder: 2);
+                dbContext.WorkoutTemplateItems.Add(item);
+                await dbContext.SaveChangesAsync();
+
+                await AddTemplateItemAttributes(dbContext, item.Id, new (string DefName, object Value)[] {
+                    (DefName: "Sets", Value: 4),
+                    (DefName: "Reps", Value: 20)
+                });
             }
 
             if (benchPressId != Guid.Empty)
             {
-                dbContext.WorkoutTemplateItems.Add(WorkoutTemplateItem.Create(
-                    template.Id, benchPressId, sets: 4, reps: 12, weight: 10, displayOrder: 3));
+                var item = WorkoutTemplateItem.Create(template.Id, benchPressId, displayOrder: 3);
+                dbContext.WorkoutTemplateItems.Add(item);
+                await dbContext.SaveChangesAsync();
+
+                await AddTemplateItemAttributes(dbContext, item.Id, new (string DefName, object Value)[] {
+                    (DefName: "Sets", Value: 4),
+                    (DefName: "Reps", Value: 12),
+                    (DefName: "Weight", Value: 10m)
+                });
             }
 
             if (crunchesId != Guid.Empty)
             {
-                dbContext.WorkoutTemplateItems.Add(WorkoutTemplateItem.Create(
-                    template.Id, crunchesId, sets: 3, reps: 20, weight: null, displayOrder: 4));
+                var item = WorkoutTemplateItem.Create(template.Id, crunchesId, displayOrder: 4);
+                dbContext.WorkoutTemplateItems.Add(item);
+                await dbContext.SaveChangesAsync();
+
+                await AddTemplateItemAttributes(dbContext, item.Id, new (string DefName, object Value)[] {
+                    (DefName: "Sets", Value: 3),
+                    (DefName: "Reps", Value: 20)
+                });
             }
 
             await dbContext.SaveChangesAsync();
 
             logger.LogInformation("Seeded default workout template: {Name}", template.Name);
+        }
+    }
+
+    private static async Task AddTemplateItemAttributes(
+        FamFitDbContext dbContext,
+        Guid templateItemId,
+        (string DefName, object Value)[] attributes)
+    {
+        var definitions = await dbContext.ActivityAttributeDefinitions
+            .ToDictionaryAsync(d => d.Name);
+
+        foreach (var (DefName, Value) in attributes)
+        {
+            if (!definitions.TryGetValue(DefName, out var definition))
+                continue;
+
+            ActivityAttributeValue attributeValue = Value switch
+            {
+                int intValue => ActivityAttributeValue.Create(definition.Id, intValue: intValue),
+                decimal decimalValue => ActivityAttributeValue.Create(definition.Id, decimalValue: decimalValue),
+                null => ActivityAttributeValue.Create(definition.Id),
+                string strValue => ActivityAttributeValue.Create(definition.Id, stringValue: strValue),
+                _ => ActivityAttributeValue.Create(definition.Id, stringValue: Value.ToString())
+            };
+
+            dbContext.AttributeValues.Add(attributeValue);
+            await dbContext.SaveChangesAsync();
+
+            dbContext.WorkoutTemplateItemAttributeValues.Add(
+                WorkoutTemplateItemAttributeValue.Create(templateItemId, attributeValue.Id));
+            await dbContext.SaveChangesAsync();
         }
     }
 }

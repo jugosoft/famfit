@@ -17,12 +17,16 @@ public sealed class FamFitDbContext : DbContext, IApplicationDbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<ActivityType> ActivityTypes => Set<ActivityType>();
-    public DbSet<ActivityTypeAttributes> ActivityTypeAttributes => Set<ActivityTypeAttributes>();
+    public DbSet<ActivityAttributeDefinition> ActivityAttributeDefinitions => Set<ActivityAttributeDefinition>();
+    public DbSet<ActivityAttributeValue> AttributeValues => Set<ActivityAttributeValue>();
+    public DbSet<ActivityTypeAttributeValue> ActivityTypeAttributeValues => Set<ActivityTypeAttributeValue>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
     public DbSet<Workout> Workouts => Set<Workout>();
     public DbSet<WorkoutEntry> WorkoutEntries => Set<WorkoutEntry>();
+    public DbSet<WorkoutEntryAttributeValue> WorkoutEntryAttributeValues => Set<WorkoutEntryAttributeValue>();
     public DbSet<WorkoutTemplate> WorkoutTemplates => Set<WorkoutTemplate>();
     public DbSet<WorkoutTemplateItem> WorkoutTemplateItems => Set<WorkoutTemplateItem>();
+    public DbSet<WorkoutTemplateItemAttributeValue> WorkoutTemplateItemAttributeValues => Set<WorkoutTemplateItemAttributeValue>();
     public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -150,10 +154,90 @@ public sealed class FamFitDbContext : DbContext, IApplicationDbContext
                 .HasDatabaseName("ix_activity_logs_user_timestamp");
         });
 
-        // --- ActivityTypeAttributes ---
-        modelBuilder.Entity<ActivityTypeAttributes>(entity =>
+        // --- ActivityAttributeDefinition ---
+        modelBuilder.Entity<ActivityAttributeDefinition>(entity =>
         {
-            entity.ToTable("activity_type_attributes");
+            entity.ToTable("activity_attribute_definitions");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                .HasColumnType("uuid")
+                .HasDefaultValueSql("gen_random_uuid()");
+
+            entity.Property(e => e.Name)
+                .IsRequired()
+                .HasMaxLength(100)
+                .HasColumnName("name");
+
+            entity.HasIndex(e => e.Name)
+                .IsUnique()
+                .HasDatabaseName("uq_activity_attribute_definitions_name");
+
+            entity.Property(e => e.DisplayName)
+                .IsRequired()
+                .HasMaxLength(100)
+                .HasColumnName("display_name");
+
+            entity.Property(e => e.DataType)
+                .IsRequired()
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .HasColumnName("data_type");
+
+            entity.Property(e => e.Unit)
+                .HasMaxLength(50)
+                .HasColumnName("unit");
+
+            entity.Property(e => e.IsActive)
+                .IsRequired()
+                .HasColumnName("is_active");
+
+            entity.Property(e => e.DisplayOrder)
+                .IsRequired()
+                .HasColumnName("display_order");
+        });
+
+        // --- ActivityAttributeValue ---
+        modelBuilder.Entity<ActivityAttributeValue>(entity =>
+        {
+            entity.ToTable("activity_attribute_values");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                .HasColumnType("uuid")
+                .HasDefaultValueSql("gen_random_uuid()");
+
+            entity.Property(e => e.DefinitionId)
+                .HasColumnType("uuid")
+                .HasColumnName("definition_id");
+
+            entity.Property(e => e.IntValue)
+                .HasColumnName("int_value");
+
+            entity.Property(e => e.DecimalValue)
+                .HasColumnType("numeric(18,4)")
+                .HasColumnName("decimal_value");
+
+            entity.Property(e => e.BoolValue)
+                .HasColumnName("bool_value");
+
+            entity.Property(e => e.StringValue)
+                .HasMaxLength(500)
+                .HasColumnName("string_value");
+
+            entity.HasOne(e => e.Definition)
+                .WithMany(e => e.AttributeValues)
+                .HasForeignKey(e => e.DefinitionId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_attribute_values_definitions");
+        });
+
+        // --- ActivityTypeAttributeValue ---
+        modelBuilder.Entity<ActivityTypeAttributeValue>(entity =>
+        {
+            entity.ToTable("activity_type_attribute_values");
 
             entity.HasKey(e => e.Id);
 
@@ -165,24 +249,97 @@ public sealed class FamFitDbContext : DbContext, IApplicationDbContext
                 .HasColumnType("uuid")
                 .HasColumnName("activity_type_id");
 
-            entity.Property(e => e.Sets)
-                .HasColumnName("sets");
-
-            entity.Property(e => e.Reps)
-                .HasColumnName("reps");
-
-            entity.Property(e => e.Weight)
-                .HasColumnName("weight");
+            entity.Property(e => e.AttributeValueId)
+                .HasColumnType("uuid")
+                .HasColumnName("attribute_value_id");
 
             entity.HasOne(e => e.ActivityType)
-                .WithOne(e => e.ActivityTypeAttributes)
-                .HasForeignKey<ActivityTypeAttributes>(e => e.ActivityTypeId)
+                .WithMany(e => e.ActivityTypeAttributeValues)
+                .HasForeignKey(e => e.ActivityTypeId)
                 .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("fk_activity_type_attributes_activity_types");
+                .HasConstraintName("fk_activity_type_attribute_values_activity_types");
 
-            entity.HasIndex(e => e.ActivityTypeId)
+            entity.HasOne(e => e.AttributeValue)
+                .WithMany(e => e.ActivityTypeAttributeValues)
+                .HasForeignKey(e => e.AttributeValueId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_activity_type_attribute_values_values");
+
+            entity.HasIndex(e => new { e.ActivityTypeId, e.AttributeValueId })
                 .IsUnique()
-                .HasDatabaseName("uq_activity_type_attributes_activity_type");
+                .HasDatabaseName("uq_activity_type_attribute_values_combo");
+        });
+
+        // --- WorkoutEntryAttributeValue ---
+        modelBuilder.Entity<WorkoutEntryAttributeValue>(entity =>
+        {
+            entity.ToTable("workout_entry_attribute_values");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                .HasColumnType("uuid")
+                .HasDefaultValueSql("gen_random_uuid()");
+
+            entity.Property(e => e.WorkoutEntryId)
+                .HasColumnType("uuid")
+                .HasColumnName("workout_entry_id");
+
+            entity.Property(e => e.AttributeValueId)
+                .HasColumnType("uuid")
+                .HasColumnName("attribute_value_id");
+
+            entity.HasOne(e => e.WorkoutEntry)
+                .WithMany(e => e.WorkoutEntryAttributeValues)
+                .HasForeignKey(e => e.WorkoutEntryId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_workout_entry_attribute_values_entries");
+
+            entity.HasOne(e => e.AttributeValue)
+                .WithMany(e => e.WorkoutEntryAttributeValues)
+                .HasForeignKey(e => e.AttributeValueId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_workout_entry_attribute_values_values");
+
+            entity.HasIndex(e => new { e.WorkoutEntryId, e.AttributeValueId })
+                .IsUnique()
+                .HasDatabaseName("uq_workout_entry_attribute_values_combo");
+        });
+
+        // --- WorkoutTemplateItemAttributeValue ---
+        modelBuilder.Entity<WorkoutTemplateItemAttributeValue>(entity =>
+        {
+            entity.ToTable("workout_template_item_attribute_values");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                .HasColumnType("uuid")
+                .HasDefaultValueSql("gen_random_uuid()");
+
+            entity.Property(e => e.WorkoutTemplateItemId)
+                .HasColumnType("uuid")
+                .HasColumnName("workout_template_item_id");
+
+            entity.Property(e => e.AttributeValueId)
+                .HasColumnType("uuid")
+                .HasColumnName("attribute_value_id");
+
+            entity.HasOne(e => e.WorkoutTemplateItem)
+                .WithMany(e => e.WorkoutTemplateItemAttributeValues)
+                .HasForeignKey(e => e.WorkoutTemplateItemId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_workout_template_item_attribute_values_items");
+
+            entity.HasOne(e => e.AttributeValue)
+                .WithMany(e => e.WorkoutTemplateItemAttributeValues)
+                .HasForeignKey(e => e.AttributeValueId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_workout_template_item_attribute_values_values");
+
+            entity.HasIndex(e => new { e.WorkoutTemplateItemId, e.AttributeValueId })
+                .IsUnique()
+                .HasDatabaseName("uq_workout_template_item_attribute_values_combo");
         });
 
         // --- Workout ---
@@ -246,15 +403,6 @@ public sealed class FamFitDbContext : DbContext, IApplicationDbContext
                 .HasColumnType("uuid")
                 .HasColumnName("activity_type_id");
 
-            entity.Property(e => e.Sets)
-                .HasColumnName("sets");
-
-            entity.Property(e => e.Reps)
-                .HasColumnName("reps");
-
-            entity.Property(e => e.Weight)
-                .HasColumnName("weight");
-
             entity.HasOne(e => e.Workout)
                 .WithMany(e => e.Entries)
                 .HasForeignKey(e => e.WorkoutId)
@@ -317,15 +465,6 @@ public sealed class FamFitDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.ActivityTypeId)
                 .HasColumnType("uuid")
                 .HasColumnName("activity_type_id");
-
-            entity.Property(e => e.Sets)
-                .HasColumnName("sets");
-
-            entity.Property(e => e.Reps)
-                .HasColumnName("reps");
-
-            entity.Property(e => e.Weight)
-                .HasColumnName("weight");
 
             entity.Property(e => e.DisplayOrder)
                 .IsRequired()

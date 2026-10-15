@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, X, Check, Dumbbell } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Plus, X, Check, Dumbbell } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -12,7 +12,8 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Alert } from '@/components/ui/Alert';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/components/ui/Toaster';
-import { getActivityTypes, createActivityType, deactivateActivityType, updateActivityTypeAttributes } from '@/api/client';
+import { getActivityTypes, createActivityType, deactivateActivityType, getActivityAttributeDefinitions } from '@/api/client';
+import { useUpdateActivityTypeAttributes } from '@/hooks/useQueries';
 
 // Types
 interface ActivityTypeItem {
@@ -20,29 +21,47 @@ interface ActivityTypeItem {
   name: string;
   unitType: 'Count' | 'Time';
   isActive?: boolean;
-  attributes?: {
-    sets?: number | null;
-    reps?: number | null;
-    weight?: number | null;
-  };
+  attributes: {
+    id: string;
+    definitionName: string;
+    displayName: string;
+    dataType: 'Integer' | 'Decimal' | 'Boolean' | 'String';
+    unit?: string | null;
+    value: unknown;
+  }[];
+}
+
+interface AttributeDefinition {
+  id: string;
+  name: string;
+  displayName: string;
+  dataType: 'Integer' | 'Decimal' | 'Boolean' | 'String';
+  unit?: string | null;
+  isActive: boolean;
+  displayOrder: number;
 }
 
 export function AdminPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const updateAttributesMutation = useUpdateActivityTypeAttributes();
+  
   const [showDialog, setShowDialog] = useState(false);
   const [showAttributesDialog, setShowAttributesDialog] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [attributesId, setAttributesId] = useState<string | null>(null);
   const [formName, setFormName] = useState('');
   const [formUnitType, setFormUnitType] = useState<'Count' | 'Time'>('Count');
-  const [formSets, setFormSets] = useState<string>('');
-  const [formReps, setFormReps] = useState<string>('');
-  const [formWeight, setFormWeight] = useState<string>('');
+  const [attributeValues, setAttributeValues] = useState<Record<string, string>>({});
 
   const { data: activityTypes = [], isLoading } = useQuery({
     queryKey: ['activity-types'],
     queryFn: getActivityTypes
+  });
+
+  const { data: attributeDefinitions = [] } = useQuery({
+    queryKey: ['attribute-definitions'],
+    queryFn: getActivityAttributeDefinitions
   });
 
   const isEditing = editingId !== null;
@@ -62,17 +81,33 @@ export function AdminPage() {
   useEffect(() => {
     if (attributesId) {
       const item = activityTypes.find(t => t.id === attributesId);
-      if (item?.attributes) {
-        setFormSets(item.attributes.sets?.toString() || '');
-        setFormReps(item.attributes.reps?.toString() || '');
-        setFormWeight(item.attributes.weight?.toString() || '');
-      } else {
-        setFormSets('');
-        setFormReps('');
-        setFormWeight('');
+      const initialValues: Record<string, string> = {};
+      if (item) {
+        for (const def of attributeDefinitions) {
+          const attr = item.attributes.find(a => a.definitionName === def.name);
+          initialValues[def.name] = attr ? formatValueForInput(attr.value, def.dataType) : '';
+        }
       }
+      setAttributeValues(initialValues);
     }
-  }, [attributesId, activityTypes]);
+  }, [attributesId, activityTypes, attributeDefinitions]);
+
+  function formatValueForInput(value: unknown, dataType: string): string {
+    if (value === null || value === undefined) return '';
+    if (dataType === 'Boolean') return String(!!value);
+    return String(value);
+  }
+
+  function getValueForApi(defName: string, inputValue: string, dataType: string) {
+    if (!inputValue.trim()) return null;
+    switch (dataType) {
+      case 'Integer': return parseInt(inputValue);
+      case 'Decimal': return parseFloat(inputValue);
+      case 'Boolean': return inputValue.toLowerCase() === 'true';
+      case 'String': return inputValue;
+      default: return inputValue;
+    }
+  }
 
   function openCreateDialog() {
     setEditingId(null);
@@ -109,11 +144,20 @@ export function AdminPage() {
   async function handleSaveAttributes() {
     if (!attributesId) return;
 
+    const attributeValuesToSend = attributeDefinitions
+      .filter(def => attributeValues[def.name] !== undefined)
+      .map(def => ({
+        definitionName: def.name,
+        [def.dataType === 'Integer' ? 'intValue' : 
+         def.dataType === 'Decimal' ? 'decimalValue' :
+         def.dataType === 'Boolean' ? 'boolValue' : 'stringValue']:
+          getValueForApi(def.name, attributeValues[def.name] || '', def.dataType)
+      }));
+
     try {
-      await updateActivityTypeAttributes(attributesId, {
-        sets: formSets ? parseInt(formSets) : null,
-        reps: formReps ? parseInt(formReps) : null,
-        weight: formWeight ? parseInt(formWeight) : null
+      await updateAttributesMutation.mutateAsync({
+        activityTypeId: attributesId,
+        attributeValues: attributeValuesToSend
       });
 
       toast.success('Атрибуты обновлены');
@@ -136,8 +180,8 @@ export function AdminPage() {
     }
   }
 
-  function clearField(setter: (v: string) => void) {
-    setter('');
+  function clearField(defName: string) {
+    setAttributeValues(prev => ({ ...prev, [defName]: '' }));
   }
 
   return (
@@ -207,14 +251,16 @@ export function AdminPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {item.attributes ? (
+                      {item.attributes.length > 0 ? (
                         <div className="text-xs space-y-1">
-                          {item.attributes.sets && <div>Подходы: {item.attributes.sets}</div>}
-                          {item.attributes.reps && <div>Повторения: {item.attributes.reps}</div>}
-                          {item.attributes.weight && <div>Вес: {item.attributes.weight} кг</div>}
-                          {!item.attributes.sets && !item.attributes.reps && !item.attributes.weight && (
-                            <span className="text-muted-foreground">Не заданы</span>
-                          )}
+                          {item.attributes.map((attr) => (
+                            <div key={attr.id}>
+                              {attr.displayName}:{' '}
+                              {attr.value !== null && attr.value !== undefined
+                                ? `${attr.value}${attr.unit ? ` ${attr.unit}` : ''}`
+                                : '—'}
+                            </div>
+                          ))}
                         </div>
                       ) : (
                         <span className="text-muted-foreground">Не заданы</span>
@@ -240,7 +286,7 @@ export function AdminPage() {
                           size="icon"
                           onClick={() => handleDelete(item.id, item.name)}
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <X className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
                     </TableCell>
@@ -298,86 +344,57 @@ export function AdminPage() {
         open={showAttributesDialog}
         onOpenChange={setShowAttributesDialog}
         title="Атрибуты активности"
-        description={isSettingAttributes ? 'Настройте подходы, повторения и вес' : ''}
+        description={isSettingAttributes ? 'Настройте значения атрибутов для этой активности' : ''}
       >
         <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Укажите значения для этой активности. Оставьте пустыми, если не применяется.
-          </p>
+          {attributeDefinitions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Определения атрибутов не загружены.</p>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Укажите значения для атрибутов. Оставьте пустыми, если не применяется.
+              </p>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="relative">
-              <label className="text-sm font-medium leading-none">Подходы</label>
-              <div className="flex gap-2 mt-1">
-                <Input
-                  type="number"
-                  placeholder="3"
-                  value={formSets}
-                  onChange={(e) => setFormSets(e.target.value)}
-                  min="0"
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => clearField(setFormSets)}
-                  className="shrink-0"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {attributeDefinitions.map((def) => (
+                  <div key={def.id} className="relative">
+                    <label className="text-sm font-medium leading-none">
+                      {def.displayName}
+                      {def.unit && <span className="text-muted-foreground ml-1">({def.unit})</span>}
+                    </label>
+                    <div className="flex gap-2 mt-1">
+                      <Input
+                        type={def.dataType === 'Integer' || def.dataType === 'Decimal' ? 'number' : 'text'}
+                        placeholder={def.displayName}
+                        value={attributeValues[def.name] || ''}
+                        onChange={(e) => setAttributeValues(prev => ({ ...prev, [def.name]: e.target.value }))}
+                        step={def.dataType === 'Decimal' ? '0.1' : undefined}
+                        min={def.dataType === 'Integer' || def.dataType === 'Decimal' ? '0' : undefined}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => clearField(def.name)}
+                        className="shrink-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-
-            <div className="relative">
-              <label className="text-sm font-medium leading-none">Повторения</label>
-              <div className="flex gap-2 mt-1">
-                <Input
-                  type="number"
-                  placeholder="15"
-                  value={formReps}
-                  onChange={(e) => setFormReps(e.target.value)}
-                  min="0"
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => clearField(setFormReps)}
-                  className="shrink-0"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            <div className="relative">
-              <label className="text-sm font-medium leading-none">
-                Вес (кг)
-              </label>
-              <div className="flex gap-2 mt-1">
-                <Input
-                  type="number"
-                  placeholder="10"
-                  value={formWeight}
-                  onChange={(e) => setFormWeight(e.target.value)}
-                  min="0"
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => clearField(setFormWeight)}
-                  className="shrink-0"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
+            </>
+          )}
 
           <div className="flex gap-3 justify-end">
             <Button variant="outline" onClick={() => setShowAttributesDialog(false)}>
               <X className="mr-2 h-4 w-4" />
               Отмена
             </Button>
-            <Button onClick={handleSaveAttributes}>
+            <Button 
+              onClick={handleSaveAttributes}
+              isLoading={updateAttributesMutation.isPending}
+            >
               <Check className="mr-2 h-4 w-4" />
               Сохранить
             </Button>

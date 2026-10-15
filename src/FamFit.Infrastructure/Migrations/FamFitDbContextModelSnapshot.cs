@@ -22,6 +22,93 @@ namespace FamFit.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("FamFit.Domain.Entities.ActivityAttributeDefinition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("DataType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("data_type");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("display_name");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("display_order");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("unit");
+
+                    b.HasKey("Id")
+                        .HasName("pk_activity_attribute_definitions");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("uq_activity_attribute_definitions_name");
+
+                    b.ToTable("activity_attribute_definitions", (string)null);
+                });
+
+            modelBuilder.Entity("FamFit.Domain.Entities.ActivityAttributeValue", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<bool>("BoolValue")
+                        .HasColumnType("boolean")
+                        .HasColumnName("bool_value");
+
+                    b.Property<decimal?>("DecimalValue")
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("decimal_value");
+
+                    b.Property<Guid>("DefinitionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("definition_id");
+
+                    b.Property<int?>("IntValue")
+                        .HasColumnType("integer")
+                        .HasColumnName("int_value");
+
+                    b.Property<string>("StringValue")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("string_value");
+
+                    b.HasKey("Id")
+                        .HasName("pk_activity_attribute_values");
+
+                    b.HasIndex("DefinitionId")
+                        .HasDatabaseName("ix_activity_attribute_values_definition_id");
+
+                    b.ToTable("activity_attribute_values", (string)null);
+                });
+
             modelBuilder.Entity("FamFit.Domain.Entities.ActivityLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -92,7 +179,7 @@ namespace FamFit.Infrastructure.Migrations
                     b.ToTable("activity_types", (string)null);
                 });
 
-            modelBuilder.Entity("FamFit.Domain.Entities.ActivityTypeAttributes", b =>
+            modelBuilder.Entity("FamFit.Domain.Entities.ActivityTypeAttributeValue", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -104,26 +191,21 @@ namespace FamFit.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("activity_type_id");
 
-                    b.Property<int?>("Reps")
-                        .HasColumnType("integer")
-                        .HasColumnName("reps");
-
-                    b.Property<int?>("Sets")
-                        .HasColumnType("integer")
-                        .HasColumnName("sets");
-
-                    b.Property<int?>("Weight")
-                        .HasColumnType("integer")
-                        .HasColumnName("weight");
+                    b.Property<Guid>("AttributeValueId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("attribute_value_id");
 
                     b.HasKey("Id")
-                        .HasName("pk_activity_type_attributes");
+                        .HasName("pk_activity_type_attribute_values");
 
-                    b.HasIndex("ActivityTypeId")
+                    b.HasIndex("AttributeValueId")
+                        .HasDatabaseName("ix_activity_type_attribute_values_attribute_value_id");
+
+                    b.HasIndex("ActivityTypeId", "AttributeValueId")
                         .IsUnique()
-                        .HasDatabaseName("uq_activity_type_attributes_activity_type");
+                        .HasDatabaseName("uq_activity_type_attribute_values_combo");
 
-                    b.ToTable("activity_type_attributes", (string)null);
+                    b.ToTable("activity_type_attribute_values", (string)null);
                 });
 
             modelBuilder.Entity("FamFit.Domain.Entities.PushSubscription", b =>
@@ -268,18 +350,6 @@ namespace FamFit.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("activity_type_id");
 
-                    b.Property<int?>("Reps")
-                        .HasColumnType("integer")
-                        .HasColumnName("reps");
-
-                    b.Property<int?>("Sets")
-                        .HasColumnType("integer")
-                        .HasColumnName("sets");
-
-                    b.Property<int?>("Weight")
-                        .HasColumnType("integer")
-                        .HasColumnName("weight");
-
                     b.Property<Guid>("WorkoutId")
                         .HasColumnType("uuid")
                         .HasColumnName("workout_id");
@@ -294,6 +364,35 @@ namespace FamFit.Infrastructure.Migrations
                         .HasDatabaseName("ix_workout_entries_workout_id");
 
                     b.ToTable("workout_entries", (string)null);
+                });
+
+            modelBuilder.Entity("FamFit.Domain.Entities.WorkoutEntryAttributeValue", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid>("AttributeValueId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("attribute_value_id");
+
+                    b.Property<Guid>("WorkoutEntryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workout_entry_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_workout_entry_attribute_values");
+
+                    b.HasIndex("AttributeValueId")
+                        .HasDatabaseName("ix_workout_entry_attribute_values_attribute_value_id");
+
+                    b.HasIndex("WorkoutEntryId", "AttributeValueId")
+                        .IsUnique()
+                        .HasDatabaseName("uq_workout_entry_attribute_values_combo");
+
+                    b.ToTable("workout_entry_attribute_values", (string)null);
                 });
 
             modelBuilder.Entity("FamFit.Domain.Entities.WorkoutTemplate", b =>
@@ -344,21 +443,9 @@ namespace FamFit.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("display_order");
 
-                    b.Property<int?>("Reps")
-                        .HasColumnType("integer")
-                        .HasColumnName("reps");
-
-                    b.Property<int?>("Sets")
-                        .HasColumnType("integer")
-                        .HasColumnName("sets");
-
                     b.Property<Guid>("TemplateId")
                         .HasColumnType("uuid")
                         .HasColumnName("template_id");
-
-                    b.Property<int?>("Weight")
-                        .HasColumnType("integer")
-                        .HasColumnName("weight");
 
                     b.HasKey("Id")
                         .HasName("pk_workout_template_items");
@@ -370,6 +457,47 @@ namespace FamFit.Infrastructure.Migrations
                         .HasDatabaseName("ix_workout_template_items_template_id");
 
                     b.ToTable("workout_template_items", (string)null);
+                });
+
+            modelBuilder.Entity("FamFit.Domain.Entities.WorkoutTemplateItemAttributeValue", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid>("AttributeValueId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("attribute_value_id");
+
+                    b.Property<Guid>("WorkoutTemplateItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workout_template_item_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_workout_template_item_attribute_values");
+
+                    b.HasIndex("AttributeValueId")
+                        .HasDatabaseName("ix_workout_template_item_attribute_values_attribute_value_id");
+
+                    b.HasIndex("WorkoutTemplateItemId", "AttributeValueId")
+                        .IsUnique()
+                        .HasDatabaseName("uq_workout_template_item_attribute_values_combo");
+
+                    b.ToTable("workout_template_item_attribute_values", (string)null);
+                });
+
+            modelBuilder.Entity("FamFit.Domain.Entities.ActivityAttributeValue", b =>
+                {
+                    b.HasOne("FamFit.Domain.Entities.ActivityAttributeDefinition", "Definition")
+                        .WithMany("AttributeValues")
+                        .HasForeignKey("DefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_attribute_values_definitions");
+
+                    b.Navigation("Definition");
                 });
 
             modelBuilder.Entity("FamFit.Domain.Entities.ActivityLog", b =>
@@ -393,16 +521,25 @@ namespace FamFit.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("FamFit.Domain.Entities.ActivityTypeAttributes", b =>
+            modelBuilder.Entity("FamFit.Domain.Entities.ActivityTypeAttributeValue", b =>
                 {
                     b.HasOne("FamFit.Domain.Entities.ActivityType", "ActivityType")
-                        .WithOne("ActivityTypeAttributes")
-                        .HasForeignKey("FamFit.Domain.Entities.ActivityTypeAttributes", "ActivityTypeId")
+                        .WithMany("ActivityTypeAttributeValues")
+                        .HasForeignKey("ActivityTypeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_activity_type_attributes_activity_types");
+                        .HasConstraintName("fk_activity_type_attribute_values_activity_types");
+
+                    b.HasOne("FamFit.Domain.Entities.ActivityAttributeValue", "AttributeValue")
+                        .WithMany("ActivityTypeAttributeValues")
+                        .HasForeignKey("AttributeValueId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_activity_type_attribute_values_values");
 
                     b.Navigation("ActivityType");
+
+                    b.Navigation("AttributeValue");
                 });
 
             modelBuilder.Entity("FamFit.Domain.Entities.PushSubscription", b =>
@@ -450,6 +587,27 @@ namespace FamFit.Infrastructure.Migrations
                     b.Navigation("Workout");
                 });
 
+            modelBuilder.Entity("FamFit.Domain.Entities.WorkoutEntryAttributeValue", b =>
+                {
+                    b.HasOne("FamFit.Domain.Entities.ActivityAttributeValue", "AttributeValue")
+                        .WithMany("WorkoutEntryAttributeValues")
+                        .HasForeignKey("AttributeValueId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_workout_entry_attribute_values_values");
+
+                    b.HasOne("FamFit.Domain.Entities.WorkoutEntry", "WorkoutEntry")
+                        .WithMany("WorkoutEntryAttributeValues")
+                        .HasForeignKey("WorkoutEntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_workout_entry_attribute_values_entries");
+
+                    b.Navigation("AttributeValue");
+
+                    b.Navigation("WorkoutEntry");
+                });
+
             modelBuilder.Entity("FamFit.Domain.Entities.WorkoutTemplate", b =>
                 {
                     b.HasOne("FamFit.Domain.Entities.User", "User")
@@ -483,9 +641,44 @@ namespace FamFit.Infrastructure.Migrations
                     b.Navigation("Template");
                 });
 
+            modelBuilder.Entity("FamFit.Domain.Entities.WorkoutTemplateItemAttributeValue", b =>
+                {
+                    b.HasOne("FamFit.Domain.Entities.ActivityAttributeValue", "AttributeValue")
+                        .WithMany("WorkoutTemplateItemAttributeValues")
+                        .HasForeignKey("AttributeValueId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_workout_template_item_attribute_values_values");
+
+                    b.HasOne("FamFit.Domain.Entities.WorkoutTemplateItem", "WorkoutTemplateItem")
+                        .WithMany("WorkoutTemplateItemAttributeValues")
+                        .HasForeignKey("WorkoutTemplateItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_workout_template_item_attribute_values_items");
+
+                    b.Navigation("AttributeValue");
+
+                    b.Navigation("WorkoutTemplateItem");
+                });
+
+            modelBuilder.Entity("FamFit.Domain.Entities.ActivityAttributeDefinition", b =>
+                {
+                    b.Navigation("AttributeValues");
+                });
+
+            modelBuilder.Entity("FamFit.Domain.Entities.ActivityAttributeValue", b =>
+                {
+                    b.Navigation("ActivityTypeAttributeValues");
+
+                    b.Navigation("WorkoutEntryAttributeValues");
+
+                    b.Navigation("WorkoutTemplateItemAttributeValues");
+                });
+
             modelBuilder.Entity("FamFit.Domain.Entities.ActivityType", b =>
                 {
-                    b.Navigation("ActivityTypeAttributes");
+                    b.Navigation("ActivityTypeAttributeValues");
                 });
 
             modelBuilder.Entity("FamFit.Domain.Entities.Workout", b =>
@@ -493,9 +686,19 @@ namespace FamFit.Infrastructure.Migrations
                     b.Navigation("Entries");
                 });
 
+            modelBuilder.Entity("FamFit.Domain.Entities.WorkoutEntry", b =>
+                {
+                    b.Navigation("WorkoutEntryAttributeValues");
+                });
+
             modelBuilder.Entity("FamFit.Domain.Entities.WorkoutTemplate", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("FamFit.Domain.Entities.WorkoutTemplateItem", b =>
+                {
+                    b.Navigation("WorkoutTemplateItemAttributeValues");
                 });
 #pragma warning restore 612, 618
         }
