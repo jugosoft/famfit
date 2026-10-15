@@ -72,7 +72,7 @@ public static class WorkoutTemplateEndpoints
 
             // Проверка: шаблон принадлежит текущему пользователю
             if (result.UserId != userId)
-                return Results.StatusCode(403);
+                return Results.Forbid();
 
             var items = result.Items.Select(i => new WorkoutTemplateItemDto(
                 i.Id,

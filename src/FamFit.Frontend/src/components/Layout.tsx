@@ -9,7 +9,8 @@ import {
   Menu,
   X,
   ChevronRight,
-  Calendar
+  Calendar,
+  LogOut
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -34,8 +35,9 @@ const navItems: NavItem[] = [
 
 export function Layout({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const location = useLocation();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, clearAuth } = useAuth();
 
   const filteredNavItems = navItems.filter(
     (item) => !item.adminOnly || user?.role === 'Admin'
@@ -101,17 +103,48 @@ export function Layout({ children }: { children: ReactNode }) {
           </nav>
 
           {/* User info */}
-          <div className="px-3 py-3 border-t border-border">
-            <div className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-accent transition-colors">
+          <div className="px-3 py-3 border-t border-border relative">
+            <button
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-accent transition-colors w-full"
+            >
               <Avatar
                 fallback={user?.name?.[0]?.toUpperCase() ?? '?'}
                 size="sm"
               />
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 text-left">
                 <p className="text-sm font-medium truncate">{user?.name}</p>
                 <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
               </div>
-            </div>
+              <ChevronRight
+                className={cn(
+                  'h-4 w-4 text-muted-foreground transition-transform',
+                  userMenuOpen && 'rotate-90'
+                )}
+              />
+            </button>
+
+            {/* Dropdown menu */}
+            {userMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setUserMenuOpen(false)}
+                />
+                <div className="absolute bottom-full left-3 right-3 mb-1 bg-card border border-border rounded-lg shadow-lg z-20 overflow-hidden">
+                  <button
+                    onClick={() => {
+                      clearAuth();
+                      setUserMenuOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-3 py-2.5 text-sm text-destructive hover:bg-accent transition-colors w-full"
+                  >
+                    <LogOut className="h-4 w-4 shrink-0" />
+                    <span>Выйти</span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </aside>
