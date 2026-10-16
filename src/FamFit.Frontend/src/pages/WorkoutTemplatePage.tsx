@@ -96,7 +96,7 @@ export function WorkoutTemplatePage() {
   }
 
   function handleAddItem() {
-    if (!selectedTemplateId || !selectedActivityTypeId) {
+    if (!templateId || !selectedActivityTypeId) {
       toast.error('Ошибка', 'Выберите тип активности');
       return;
     }
@@ -116,7 +116,7 @@ export function WorkoutTemplatePage() {
 
     addTemplateItemMutation.mutate(
       {
-        templateId: selectedTemplateId,
+        templateId: templateId!,
         activityTypeId: selectedActivityTypeId,
         attributeValues: attributeValuesToSend,
         displayOrder: (template?.items.length ?? 0) + 1
@@ -135,10 +135,10 @@ export function WorkoutTemplatePage() {
   }
 
   function handleRemoveItem(activityTypeId: string) {
-    if (!selectedTemplateId) return;
+    if (!templateId) return;
 
     removeTemplateItemMutation.mutate(
-      { templateId: selectedTemplateId, activityTypeId },
+      { templateId, activityTypeId },
       {
         onError: (error: Error) => {
           toast.error('Ошибка', error.message);

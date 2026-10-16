@@ -30,6 +30,17 @@ export interface UserDto {
   email: string;
   role: 'Admin' | 'Member';
   streakCount: number;
+  isBanned: boolean;
+}
+
+export interface UpdateUserRequest {
+  name?: string;
+  email?: string;
+  role?: 'Admin' | 'Member';
+}
+
+export interface ResetPasswordRequest {
+  password: string;
 }
 
 export interface LoginRequest {

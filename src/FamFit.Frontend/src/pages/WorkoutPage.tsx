@@ -8,7 +8,8 @@ import {
   Trash2,
   Clock,
   Calendar,
-  Zap
+  Zap,
+  X
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';

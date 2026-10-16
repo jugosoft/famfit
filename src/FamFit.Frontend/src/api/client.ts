@@ -5,9 +5,9 @@ import type {
   RegisterRequest,
   ChangePasswordRequest,
   UserDto,
+  UpdateUserRequest,
   ActivityTypeDto,
   CreateActivityTypeRequest,
-  UpdateActivityTypeAttributesRequest,
   AttributeInput,
   AttributeDefinitionDto,
   ActivityLogDto,
@@ -23,7 +23,6 @@ import type {
   WorkoutTemplateListDto,
   CreateWorkoutTemplateRequest,
   AddWorkoutTemplateItemRequest,
-  TemplateAttributeInput,
   ActivityUnitDto,
   CreateActivityUnitRequest,
   UpdateActivityUnitRequest
@@ -66,6 +65,24 @@ export async function getMe(): Promise<UserDto> {
   return http.get<UserDto>('/auth/me');
 }
 
+// ==================== Admin User Management ====================
+
+export async function getUsers(): Promise<UserDto[]> {
+  return http.get<UserDto[]>('/admin/users');
+}
+
+export async function updateUser(id: string, data: UpdateUserRequest): Promise<UserDto> {
+  return http.put<UserDto>(`/admin/users/${id}`, data);
+}
+
+export async function toggleBanUser(id: string): Promise<UserDto> {
+  return http.put<UserDto>(`/admin/users/${id}/ban`, {});
+}
+
+export async function resetUserPassword(id: string, password: string): Promise<void> {
+  await http.put<void>(`/admin/users/${id}/reset-password`, { password });
+}
+
 // ==================== Activity Types API ====================
 
 export async function getActivityTypes(): Promise<ActivityTypeDto[]> {
@@ -91,6 +108,18 @@ export async function deactivateActivityAttributeDefinition(id: string): Promise
 
 export async function createActivityType(data: CreateActivityTypeRequest): Promise<ActivityTypeDto> {
   return http.post<ActivityTypeDto>('/activity-types', data);
+}
+
+export async function deactivateActivityType(id: string): Promise<void> {
+  try {
+    await http.put<void>(`/activity-types/${id}/deactivate`);
+  } catch (error: any) {
+    if (error?.response?.status === 409) {
+      const detail = error?.response?.data?.message || 'Тип активности используется и не может быть деактивирован';
+      throw new Error(detail);
+    }
+    throw error;
+  }
 }
 
 // ==================== Activity Units API ====================

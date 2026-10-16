@@ -31,6 +31,7 @@ import {
   deactivateActivityUnit
 } from '@/api/client';
 import { ApiError } from '@/lib/errors';
+import type { UpdateActivityUnitRequest } from '@/api/types';
 
 // ==================== Auth Queries ====================
 

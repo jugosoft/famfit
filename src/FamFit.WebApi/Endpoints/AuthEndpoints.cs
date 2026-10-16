@@ -30,11 +30,19 @@ public static class AuthEndpoints
         string Name,
         string Email,
         string Role,
-        int StreakCount);
+        int StreakCount,
+        bool IsBanned);
 
     public record RegisterRequest(string Name, string Email, string Password);
 
     public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+
+    public record UpdateUserRequest(
+        string? Name,
+        string? Email,
+        string? Role);
+
+    public record ResetPasswordRequest(string Password);
 
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
@@ -59,7 +67,11 @@ public static class AuthEndpoints
             if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
                 return Results.Unauthorized();
 
-            // 3. Генерируем JWT-токен
+            // 3. Проверяем, не забанен ли пользователь
+            if (user.IsBanned)
+                return Results.Conflict(new { error = "User is banned." });
+
+            // 4. Генерируем JWT-токен
             var jwtSection = configuration.GetSection("Jwt");
             var secret = jwtSection["Secret"]
                 ?? throw new InvalidOperationException("JWT secret not configured.");
@@ -98,7 +110,8 @@ public static class AuthEndpoints
                     user.Name,
                     user.Email,
                     user.Role.ToString(),
-                    user.StreakCount));
+                    user.StreakCount,
+                    false));
 
             return Results.Ok(response);
         })
@@ -200,12 +213,160 @@ public static class AuthEndpoints
                 user.Name,
                 user.Email,
                 user.Role.ToString(),
-                user.StreakCount));
+                user.StreakCount,
+                user.IsBanned));
         })
         .WithSummary("Получить данные текущего пользователя")
         .RequireAuthorization()
         .Produces<UserDto>()
         .Produces(StatusCodes.Status404NotFound);
+
+        // ==================== Admin User Management ====================
+
+        // GET /api/admin/users — получить всех пользователей (только админ)
+        group.MapGet("/admin/users", async (
+            HttpContext context,
+            FamFitDbContext db) =>
+        {
+            if (!context.IsAdmin())
+                return Results.Forbid();
+
+            var users = await db.Users
+                .OrderBy(u => u.Name)
+                .Select(u => new UserDto(
+                    u.Id,
+                    u.Name,
+                    u.Email,
+                    u.Role.ToString(),
+                    u.StreakCount,
+                    u.IsBanned))
+                .ToListAsync();
+
+            return Results.Ok(users);
+        })
+        .WithSummary("Получить всех пользователей")
+        .RequireAuthorization()
+        .Produces<List<UserDto>>()
+        .Produces(StatusCodes.Status403Forbidden);
+
+        // PUT /api/admin/users/{id} — обновить пользователя (только админ)
+        group.MapPut("/admin/users/{id}", async (
+            Guid id,
+            [FromBody] UpdateUserRequest request,
+            FamFitDbContext db,
+            HttpContext context) =>
+        {
+            if (!context.IsAdmin())
+                return Results.Forbid();
+
+            var user = await db.Users.FindAsync(id);
+            if (user is null)
+                return Results.NotFound();
+
+            // Обновление имени
+            if (!string.IsNullOrWhiteSpace(request.Name))
+            {
+                if (request.Name.Length < 2)
+                    return Results.BadRequest(new { error = "Name must be at least 2 characters." });
+                user.UpdateName(request.Name);
+            }
+
+            // Обновление email (проверка уникальности)
+            if (!string.IsNullOrWhiteSpace(request.Email) && request.Email != user.Email)
+            {
+                if (await db.Users.AnyAsync(u => u.Email == request.Email.Trim().ToLowerInvariant()))
+                    return Results.Conflict(new { error = "Email already in use." });
+                user.UpdateEmail(request.Email);
+            }
+
+            // Обновление роли
+            if (!string.IsNullOrEmpty(request.Role))
+            {
+                var newRole = (Role)Enum.Parse(typeof(Role), request.Role);
+                if (user.Role == Role.Admin && newRole == Role.Member)
+                    user.DemoteToMember();
+                else if (user.Role == Role.Member && newRole == Role.Admin)
+                    user.PromoteToAdmin();
+            }
+
+            await db.SaveChangesAsync();
+
+            return Results.Ok(new UserDto(
+                user.Id,
+                user.Name,
+                user.Email,
+                user.Role.ToString(),
+                user.StreakCount,
+                user.IsBanned));
+        })
+        .WithSummary("Обновить пользователя")
+        .RequireAuthorization()
+        .Produces<UserDto>()
+        .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status409Conflict);
+
+        // PUT /api/admin/users/{id}/ban — забанить/разбанить пользователя (только админ)
+        group.MapPut("/admin/users/{id}/ban", async (
+            Guid id,
+            FamFitDbContext db,
+            HttpContext context) =>
+        {
+            if (!context.IsAdmin())
+                return Results.Forbid();
+
+            var user = await db.Users.FindAsync(id);
+            if (user is null)
+                return Results.NotFound();
+
+            if (user.IsBanned)
+                user.Unban();
+            else
+                user.Ban();
+
+            await db.SaveChangesAsync();
+
+            return Results.Ok(new UserDto(
+                user.Id,
+                user.Name,
+                user.Email,
+                user.Role.ToString(),
+                user.StreakCount,
+                user.IsBanned));
+        })
+        .WithSummary("Забанить или разбанить пользователя")
+        .RequireAuthorization()
+        .Produces<UserDto>()
+        .Produces(StatusCodes.Status404NotFound);
+
+        // PUT /api/admin/users/{id}/reset-password — сбросить пароль (только админ)
+        group.MapPut("/admin/users/{id}/reset-password", async (
+            Guid id,
+            [FromBody] ResetPasswordRequest request,
+            FamFitDbContext db,
+            HttpContext context) =>
+        {
+            if (!context.IsAdmin())
+                return Results.Forbid();
+
+            var user = await db.Users.FindAsync(id);
+            if (user is null)
+                return Results.NotFound();
+
+            if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
+                return Results.BadRequest(new { error = "Password must be at least 8 characters." });
+
+            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password, workFactor: 12);
+            user.ChangePassword(hashedPassword);
+
+            await db.SaveChangesAsync();
+
+            return Results.Ok(new { message = "Password reset successfully." });
+        })
+        .WithSummary("Сбросить пароль пользователя")
+        .RequireAuthorization()
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status400BadRequest);
 
         return app;
     }

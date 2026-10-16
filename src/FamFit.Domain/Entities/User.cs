@@ -13,6 +13,7 @@ public sealed class User
     public string PasswordHash { get; private set; } = string.Empty;
     public Role Role { get; private set; } = Role.Member;
     public int StreakCount { get; private set; } = 0;
+    public bool IsBanned { get; private set; } = false;
 
     // EF Core parameterless constructor (internal для инкапсуляции)
     private User() { }
@@ -59,5 +60,31 @@ public sealed class User
             throw new ArgumentException("Password hash cannot be empty.", nameof(newPasswordHash));
 
         PasswordHash = newPasswordHash;
+    }
+
+    public void Ban()
+    {
+        IsBanned = true;
+    }
+
+    public void Unban()
+    {
+        IsBanned = false;
+    }
+
+    public void UpdateName(string newName)
+    {
+        if (string.IsNullOrWhiteSpace(newName))
+            throw new ArgumentException("Name cannot be empty.", nameof(newName));
+
+        Name = newName.Trim();
+    }
+
+    public void UpdateEmail(string newEmail)
+    {
+        if (string.IsNullOrWhiteSpace(newEmail))
+            throw new ArgumentException("Email cannot be empty.", nameof(newEmail));
+
+        Email = newEmail.Trim().ToLowerInvariant();
     }
 }
