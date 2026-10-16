@@ -118,6 +118,11 @@ export interface CreateActivityTypeRequest {
   activityUnitId: string;
 }
 
+export interface UpdateActivityTypeRequest {
+  name?: string;
+  activityUnitId?: string;
+}
+
 /**
  * ==================== ActivityUnit ====================
  * Единицы измерения активностей

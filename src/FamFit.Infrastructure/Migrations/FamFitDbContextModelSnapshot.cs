@@ -311,6 +311,10 @@ namespace FamFit.Infrastructure.Migrations
                         .HasColumnType("character varying(255)")
                         .HasColumnName("email");
 
+                    b.Property<bool>("IsBanned")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_banned");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)

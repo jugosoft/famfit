@@ -6,6 +6,7 @@ using FamFit.Infrastructure.Data;
 using FamFit.WebApi.Models;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
 
@@ -329,6 +330,39 @@ public static class ActivityTypeEndpoints
         .Produces<List<AttributeDefinitionDto>>()
         .Produces(StatusCodes.Status500InternalServerError);
 
+        // PUT /api/activity-types/{id} — обновить название и единицу измерения
+        group.MapPut("/{id:guid}", async (
+            Guid id,
+            [FromBody] UpdateActivityTypeRequest request,
+            FamFitDbContext db) =>
+        {
+            var activityType = await db.ActivityTypes.FindAsync(id);
+            if (activityType is null)
+                return Results.NotFound();
+
+            if (!string.IsNullOrWhiteSpace(request.Name))
+            {
+                if (request.Name.Length < 2)
+                    return Results.BadRequest(new { error = "Name must be at least 2 characters." });
+                activityType.UpdateName(request.Name);
+            }
+
+            if (request.ActivityUnitId.HasValue)
+            {
+                activityType.UpdateUnit(request.ActivityUnitId.Value);
+            }
+
+            await db.SaveChangesAsync();
+
+            return Results.Ok(new { id, activityType.Name, activityType.ActivityUnitId });
+        })
+        .WithSummary("Обновить тип активности")
+        .RequireAuthorization("Admin")
+        .Produces<object>()
+        .Produces(StatusCodes.Status404NotFound);
+
         return app;
     }
 }
+
+public record UpdateActivityTypeRequest(string? Name, Guid? ActivityUnitId);

@@ -8,6 +8,7 @@ import type {
   UpdateUserRequest,
   ActivityTypeDto,
   CreateActivityTypeRequest,
+  UpdateActivityTypeRequest,
   AttributeInput,
   AttributeDefinitionDto,
   ActivityLogDto,
@@ -120,6 +121,10 @@ export async function deactivateActivityType(id: string): Promise<void> {
     }
     throw error;
   }
+}
+
+export async function updateActivityType(id: string, data: UpdateActivityTypeRequest): Promise<void> {
+  await http.put<void>(`/activity-types/${id}`, data);
 }
 
 // ==================== Activity Units API ====================
