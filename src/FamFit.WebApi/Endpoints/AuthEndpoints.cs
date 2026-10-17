@@ -223,8 +223,13 @@ public static class AuthEndpoints
 
         // ==================== Admin User Management ====================
 
+        // Admin group
+        var adminGroup = app.MapGroup("/api/admin")
+            .WithTags("Admin")
+            .WithOpenApi();
+
         // GET /api/admin/users — получить всех пользователей (только админ)
-        group.MapGet("/admin/users", async (
+        adminGroup.MapGet("/users", async (
             HttpContext context,
             FamFitDbContext db) =>
         {
@@ -250,7 +255,7 @@ public static class AuthEndpoints
         .Produces(StatusCodes.Status403Forbidden);
 
         // PUT /api/admin/users/{id} — обновить пользователя (только админ)
-        group.MapPut("/admin/users/{id}", async (
+        adminGroup.MapPut("/users/{id}", async (
             Guid id,
             [FromBody] UpdateUserRequest request,
             FamFitDbContext db,
@@ -306,7 +311,7 @@ public static class AuthEndpoints
         .Produces(StatusCodes.Status409Conflict);
 
         // PUT /api/admin/users/{id}/ban — забанить/разбанить пользователя (только админ)
-        group.MapPut("/admin/users/{id}/ban", async (
+        adminGroup.MapPut("/users/{id}/ban", async (
             Guid id,
             FamFitDbContext db,
             HttpContext context) =>
@@ -339,7 +344,7 @@ public static class AuthEndpoints
         .Produces(StatusCodes.Status404NotFound);
 
         // PUT /api/admin/users/{id}/reset-password — сбросить пароль (только админ)
-        group.MapPut("/admin/users/{id}/reset-password", async (
+        adminGroup.MapPut("/users/{id}/reset-password", async (
             Guid id,
             [FromBody] ResetPasswordRequest request,
             FamFitDbContext db,

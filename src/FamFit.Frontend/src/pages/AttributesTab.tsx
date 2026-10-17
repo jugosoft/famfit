@@ -18,17 +18,37 @@ import {
 } from '@/api/client';
 import type { AttributeDefinitionDto } from '@/api/types';
 
-interface AttributeDefinitionsTabProps {
+interface AttributesTabProps {
   attributeDefinitions: AttributeDefinitionDto[];
   pendingCreateTab: string | null;
   onCreate: () => void;
 }
 
-export function AttributeDefinitionsTab({
+const dataTypeLabels: Record<string, { label: string; color: string }> = {
+  Integer: { label: 'Целое число', color: 'bg-blue-100 text-blue-800' },
+  Decimal: { label: 'Дробное число', color: 'bg-green-100 text-green-800' },
+  Boolean: { label: 'Логический', color: 'bg-purple-100 text-purple-800' },
+  String: { label: 'Строка', color: 'bg-amber-100 text-amber-800' },
+};
+
+function getDataTypeBadge(dataType: string) {
+  const config = dataTypeLabels[dataType];
+  if (!config) {
+    return 'Без расшифровки';
+  };
+  return config.label;
+}
+
+function getDataTypeColor(dataType: string) {
+  const config = dataTypeLabels[dataType];
+  return config?.color || 'bg-gray-100 text-gray-800';
+}
+
+export function AttributesTab({
   attributeDefinitions,
   pendingCreateTab,
   onCreate,
-}: AttributeDefinitionsTabProps) {
+}: AttributesTabProps) {
   const queryClient = useQueryClient();
 
   const [showDialog, setShowDialog] = useState(false);
@@ -41,14 +61,13 @@ export function AttributeDefinitionsTab({
   const [formDisplayName, setFormDisplayName] = useState('');
   const [formDataType, setFormDataType] = useState<'Integer' | 'Decimal' | 'Boolean' | 'String'>('Integer');
   const [formUnit, setFormUnit] = useState('');
-  const [formDisplayOrder, setFormDisplayOrder] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
 
   const isEditing = editingId !== null;
 
   // Open create dialog when pendingCreateTab matches
   useEffect(() => {
-    if (pendingCreateTab === 'attribute-definitions') {
+    if (pendingCreateTab === 'attributes') {
       openCreateDialog();
       onCreate();
     }
@@ -63,7 +82,6 @@ export function AttributeDefinitionsTab({
         setFormDisplayName(item.displayName);
         setFormDataType(item.dataType);
         setFormUnit(item.unit || '');
-        setFormDisplayOrder(item.displayOrder);
       }
     }
   }, [editingId, attributeDefinitions]);
@@ -74,7 +92,6 @@ export function AttributeDefinitionsTab({
     setFormDisplayName('');
     setFormDataType('Integer');
     setFormUnit('');
-    setFormDisplayOrder(0);
     setShowDialog(true);
   }
 
@@ -84,7 +101,6 @@ export function AttributeDefinitionsTab({
     setFormDisplayName(item.displayName);
     setFormDataType(item.dataType);
     setFormUnit(item.unit || '');
-    setFormDisplayOrder(item.displayOrder);
     setShowDialog(true);
   }
 
@@ -111,7 +127,6 @@ export function AttributeDefinitionsTab({
           name: formName.trim(),
           displayName: formDisplayName.trim(),
           unit: formUnit.trim() || undefined,
-          displayOrder: formDisplayOrder,
         });
         toast.success('Атрибут обновлён');
       } else {
@@ -120,7 +135,6 @@ export function AttributeDefinitionsTab({
           displayName: formDisplayName.trim(),
           dataType: formDataType,
           unit: formUnit.trim() || undefined,
-          displayOrder: formDisplayOrder,
         });
         toast.success('Атрибут создан');
       }
@@ -174,7 +188,6 @@ export function AttributeDefinitionsTab({
                   <TableHead>Имя</TableHead>
                   <TableHead>Тип данных</TableHead>
                   <TableHead>Символ</TableHead>
-                  <TableHead>Порядок</TableHead>
                   <TableHead>Статус</TableHead>
                   <TableHead className="text-right">Действия</TableHead>
                 </TableRow>
@@ -189,12 +202,13 @@ export function AttributeDefinitionsTab({
                     <TableCell className="font-medium">{def.displayName}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{def.name}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{def.dataType}</Badge>
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getDataTypeColor(def.dataType)}`}>
+                        {getDataTypeBadge(def.dataType)}
+                      </span>
                     </TableCell>
                     <TableCell>
                       {def.unit ? <Badge variant="secondary">{def.unit}</Badge> : '—'}
                     </TableCell>
-                    <TableCell>{def.displayOrder}</TableCell>
                     <TableCell>
                       <Badge variant={def.isActive ? 'default' : 'secondary'}>
                         {def.isActive ? 'Активен' : 'Неактивен'}
@@ -264,14 +278,6 @@ export function AttributeDefinitionsTab({
             value={formUnit}
             onChange={(e) => setFormUnit(e.target.value)}
             maxLength={20}
-          />
-
-          <Input
-            label="Порядок отображения"
-            type="number"
-            value={String(formDisplayOrder)}
-            onChange={(e) => setFormDisplayOrder(parseInt(e.target.value) || 0)}
-            min={0}
           />
 
           <div className="flex gap-3 justify-end">

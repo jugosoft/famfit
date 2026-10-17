@@ -23,7 +23,12 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = null;
         options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
+builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 builder.Services.AddEndpointsApiExplorer();
 
 // === OpenAPI / Swagger ===
@@ -231,6 +236,7 @@ catch (Exception ex)
 // === Map API Endpoints ===
 app.MapAuthEndpoints();
 app.MapActivityTypeEndpoints();
+app.MapAttributeEndpoints();
 app.MapActivityLogEndpoints();
 app.MapPushSubscriptionEndpoints();
 app.MapVapidEndpoints();

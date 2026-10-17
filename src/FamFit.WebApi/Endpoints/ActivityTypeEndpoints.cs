@@ -33,15 +33,7 @@ public static class ActivityTypeEndpoints
         bool IsActive,
         IReadOnlyList<AttributeValueDto> Attributes);
 
-    // DTO для определения атрибута
-    public record AttributeDefinitionDto(
-        Guid Id,
-        string Name,
-        string DisplayName,
-        AttributeDataType DataType,
-        string? Unit,
-        bool IsActive,
-        int DisplayOrder);
+
 
     // DTO для запроса обновления атрибутов
     public record UpdateAttributesRequest(
@@ -111,15 +103,45 @@ public static class ActivityTypeEndpoints
         // POST /api/activity-types — создать новый тип
         group.MapPost("/", async (
             [FromBody] CreateActivityTypeRequest request,
-            IMediator mediator) =>
+            FamFitDbContext db) =>
         {
-            var command = new CreateActivityTypeCommand(request.Name);
+            // Создаём тип активности
+            var activityType = ActivityType.Create(request.Name);
+            db.ActivityTypes.Add(activityType);
+            await db.SaveChangesAsync();
 
-            var result = await mediator.Send(command);
+            // Создаём атрибуты, если они переданы
+            if (request.AttributeValues != null && request.AttributeValues.Count > 0)
+            {
+                foreach (var attrInput in request.AttributeValues)
+                {
+                    var definition = await db.ActivityAttributeDefinitions
+                        .FirstOrDefaultAsync(d => d.Name == attrInput.DefinitionName);
+
+                    if (definition is null)
+                        continue;
+
+                    // Всегда создаём новое значение атрибута для этого типа активности
+                    var attributeValue = ActivityAttributeValue.Create(
+                        definition.Id,
+                        attrInput.IntValue,
+                        attrInput.DecimalValue,
+                        attrInput.BoolValue ?? false,
+                        attrInput.StringValue);
+
+                    db.AttributeValues.Add(attributeValue);
+
+                    // Создаём связь
+                    db.ActivityTypeAttributeValues.Add(
+                        ActivityTypeAttributeValue.Create(activityType.Id, attributeValue.Id));
+                }
+
+                await db.SaveChangesAsync();
+            }
 
             return Results.Created(
-                $"/api/activity-types/{result.Id}",
-                new { result.Id, result.Name });
+                $"/api/activity-types/{activityType.Id}",
+                new { activityType.Id, activityType.Name });
         })
         .WithSummary("Создать новый тип активности")
         .WithDescription("Создаёт новый тип активности. Доступно только для FamilyAdmin.")
@@ -214,193 +236,7 @@ public static class ActivityTypeEndpoints
         .Produces(StatusCodes.Status404NotFound)
         .Produces(StatusCodes.Status403Forbidden);
 
-        // PUT /api/activity-types/attributes/values/{id}/deactivate — деактивировать значение атрибута
-        group.MapPut("/attributes/values/{id:guid}/deactivate", async (
-            Guid id,
-            FamFitDbContext db) =>
-        {
-            var attributeValue = await db.AttributeValues
-                .Include(av => av.ActivityTypeAttributeValues)
-                .Include(av => av.WorkoutEntryAttributeValues)
-                .Include(av => av.WorkoutTemplateItemAttributeValues)
-                .FirstOrDefaultAsync(av => av.Id == id);
-
-            if (attributeValue is null)
-                return Results.NotFound();
-
-            var references = new List<string>();
-
-            var hasTypeAttributeValues = await db.ActivityTypeAttributeValues
-                .AnyAsync(atav => atav.AttributeValueId == id);
-            if (hasTypeAttributeValues)
-                references.Add("типов активностей");
-
-            var hasWorkoutEntryAttrValues = await db.WorkoutEntryAttributeValues
-                .AnyAsync(weav => weav.AttributeValueId == id);
-            if (hasWorkoutEntryAttrValues)
-                references.Add("записей тренировок");
-
-            var hasTemplateItemAttrValues = await db.WorkoutTemplateItemAttributeValues
-                .AnyAsync(wtiev => wtiev.AttributeValueId == id);
-            if (hasTemplateItemAttrValues)
-                references.Add("элементов шаблонов тренировок");
-
-            if (references.Count > 0)
-            {
-                var referencedIn = string.Join(", ", references);
-                return Results.Conflict(new
-                {
-                    error = "AttributeValueInUse",
-                    message = $"Невозможно деактивировать значение атрибута, так как оно используется в: {referencedIn}. Сначала удалите связанные записи.",
-                    references
-                });
-            }
-
-            // Деактивируем значение атрибута, устанавливая его в null
-            attributeValue.Update(intValue: null, decimalValue: null, boolValue: null, stringValue: null);
-            await db.SaveChangesAsync();
-
-            return Results.Ok(new { id, isActive = false });
-        })
-        .WithSummary("Деактивировать значение атрибута")
-        .WithDescription("Сбрасывает значение атрибута. Доступно только для FamilyAdmin. Возвращает 409, если значение используется.")
-        .RequireAuthorization("Admin")
-        .Produces<object>()
-        .Produces(StatusCodes.Status404NotFound)
-        .Produces(StatusCodes.Status403Forbidden)
-        .Produces(StatusCodes.Status409Conflict);
-
-        // === Attribute Definitions Endpoints ===
-
-        // POST /api/activity-types/attributes — создать определение атрибута
-        group.MapPost("/attributes", async (
-            [FromBody] CreateAttributeDefinitionRequest request,
-            FamFitDbContext db) =>
-        {
-            // Проверка уникальности по имени
-            var exists = await db.ActivityAttributeDefinitions
-                .AnyAsync(d => d.Name == request.Name);
-            if (exists)
-                return Results.Conflict(new { error = "AttributeAlreadyExists", message = "Атрибут с таким именем уже существует." });
-
-            var definition = ActivityAttributeDefinition.Create(
-                request.Name,
-                request.DisplayName,
-                request.DataType,
-                request.Unit,
-                request.DisplayOrder);
-
-            db.ActivityAttributeDefinitions.Add(definition);
-            await db.SaveChangesAsync();
-
-            return Results.Created(
-                $"/api/activity-types/attributes/{definition.Id}",
-                new { definition.Id, definition.Name, definition.DisplayName, definition.DataType, definition.Unit, definition.DisplayOrder });
-        })
-        .WithSummary("Создать определение атрибута")
-        .RequireAuthorization("Admin")
-        .Produces<Guid>(StatusCodes.Status201Created)
-        .Produces(StatusCodes.Status403Forbidden)
-        .Produces(StatusCodes.Status409Conflict);
-
-        // PUT /api/activity-types/attributes/{id} — обновить определение атрибута
-        group.MapPut("/attributes/{id:guid}", async (
-            Guid id,
-            [FromBody] UpdateAttributeDefinitionRequest request,
-            FamFitDbContext db) =>
-        {
-            var definition = await db.ActivityAttributeDefinitions.FindAsync(id);
-            if (definition is null)
-                return Results.NotFound();
-
-            if (!string.IsNullOrWhiteSpace(request.Name))
-            {
-                if (request.Name.Length > 100)
-                    return Results.BadRequest(new { error = "Name too long." });
-                definition.UpdateName(request.Name);
-            }
-
-            if (!string.IsNullOrWhiteSpace(request.DisplayName))
-            {
-                if (request.DisplayName.Length > 100)
-                    return Results.BadRequest(new { error = "Display name too long." });
-                definition.UpdateDisplayName(request.DisplayName);
-            }
-
-            if (!string.IsNullOrWhiteSpace(request.Unit))
-            {
-                definition.UpdateUnit(request.Unit);
-            }
-
-            if (request.DisplayOrder.HasValue)
-            {
-                definition.UpdateDisplayOrder(request.DisplayOrder.Value);
-            }
-
-            await db.SaveChangesAsync();
-
-            return Results.Ok(new { definition.Id, definition.Name, definition.DisplayName, definition.DataType, definition.Unit, definition.DisplayOrder });
-        })
-        .WithSummary("Обновить определение атрибута")
-        .RequireAuthorization("Admin")
-        .Produces<object>()
-        .Produces(StatusCodes.Status404NotFound);
-
-        // PUT /api/activity-types/attributes/{id}/deactivate — деактивировать определение атрибута
-        group.MapPut("/attributes/{id:guid}/deactivate", async (
-            Guid id,
-            FamFitDbContext db) =>
-        {
-            var definition = await db.ActivityAttributeDefinitions.FindAsync(id);
-
-            if (definition is null)
-                return Results.NotFound();
-
-            // Проверяем, используется ли определение в ActivityAttributeValue
-            var hasAttributeValues = await db.AttributeValues
-                .AnyAsync(av => av.DefinitionId == id);
-            if (hasAttributeValues)
-            {
-                return Results.Conflict(new
-                {
-                    error = "AttributeInUse",
-                    message = $"Невозможно деактивировать атрибут, так как он используется в значениях атрибутов. Сначала удалите связанные записи.",
-                    references = new[] { "значений атрибутов" }
-                });
-            }
-
-            definition.Update(isActive: false);
-            await db.SaveChangesAsync();
-
-            return Results.Ok(new { id, isActive = false });
-        })
-        .WithSummary("Деактивировать атрибут")
-        .WithDescription("Делает атрибут неактивным. Доступно только для FamilyAdmin. Возвращает 409, если атрибут используется.")
-        .RequireAuthorization("Admin")
-        .Produces<object>()
-        .Produces(StatusCodes.Status404NotFound)
-        .Produces(StatusCodes.Status403Forbidden)
-        .Produces(StatusCodes.Status409Conflict);
-
-        // GET /api/activity-types/attributes — список определений
-        group.MapGet("/attributes", async (IMediator mediator) =>
-        {
-            var definitions = await mediator.Send(new GetActivityAttributeDefinitionsQuery());
-            return Results.Ok(definitions.Select(d => new AttributeDefinitionDto(
-                d.Id,
-                d.Name,
-                d.DisplayName,
-                d.DataType,
-                d.Unit,
-                d.IsActive,
-                d.DisplayOrder)).ToList());
-        })
-        .WithSummary("Получить список определений атрибутов")
-        .WithDescription("Возвращает все активные определения атрибутов для использования в UI.")
-        .Produces<List<AttributeDefinitionDto>>()
-        .Produces(StatusCodes.Status500InternalServerError);
-
-        // PUT /api/activity-types/{id} — обновить название
+        // PUT /api/activity-types/{id} — обновить название и атрибуты
         group.MapPut("/{id:guid}", async (
             Guid id,
             [FromBody] UpdateActivityTypeRequest request,
@@ -417,6 +253,26 @@ public static class ActivityTypeEndpoints
                 activityType.UpdateName(request.Name);
             }
 
+            // Обновляем атрибуты, если они переданы
+            if (request.AttributeValueIds != null && request.AttributeValueIds.Count > 0)
+            {
+                // Удаляем старые связи
+                var existingLinks = db.ActivityTypeAttributeValues
+                    .Where(atav => atav.ActivityTypeId == id);
+                db.ActivityTypeAttributeValues.RemoveRange(existingLinks);
+
+                // Создаём новые связи с переданными attributeValueId
+                foreach (var attributeValueId in request.AttributeValueIds)
+                {
+                    var attributeValue = await db.AttributeValues.FindAsync(attributeValueId);
+                    if (attributeValue is null)
+                        continue;
+
+                    db.ActivityTypeAttributeValues.Add(
+                        ActivityTypeAttributeValue.Create(id, attributeValue.Id));
+                }
+            }
+
             await db.SaveChangesAsync();
 
             return Results.Ok(new { id, activityType.Name });
@@ -428,21 +284,26 @@ public static class ActivityTypeEndpoints
 
         return app;
     }
+
+    private static bool MatchValue(ActivityAttributeValue value, AttributeValueInput input, Domain.Enums.AttributeDataType dataType)
+    {
+        return dataType switch
+        {
+            Domain.Enums.AttributeDataType.Integer => value.IntValue == input.IntValue,
+            Domain.Enums.AttributeDataType.Decimal => value.DecimalValue == input.DecimalValue,
+            Domain.Enums.AttributeDataType.Boolean => value.BoolValue == (input.BoolValue ?? false),
+            Domain.Enums.AttributeDataType.String => value.StringValue == input.StringValue,
+            _ => false
+        };
+    }
 }
 
-public record CreateActivityTypeRequest(string Name);
-
-public record UpdateActivityTypeRequest(string? Name);
-
-public record CreateAttributeDefinitionRequest(
+public record CreateActivityTypeRequest(
     string Name,
-    string DisplayName,
-    Domain.Enums.AttributeDataType DataType,
-    string? Unit,
-    int DisplayOrder);
+    IReadOnlyList<AttributeValueInput>? AttributeValues);
 
-public record UpdateAttributeDefinitionRequest(
+public record UpdateActivityTypeRequest(
     string? Name,
-    string? DisplayName,
-    string? Unit,
-    int? DisplayOrder);
+    IReadOnlyList<Guid>? AttributeValueIds);
+
+

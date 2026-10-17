@@ -14,7 +14,6 @@ import {
   createActivityType,
   deactivateActivityType,
   updateActivityType,
-  updateActivityTypeAttributes,
 } from '@/api/client';
 import type { AttributeDefinitionDto } from '@/api/types';
 
@@ -24,7 +23,7 @@ interface ActivityTypeItem {
   name: string;
   isActive?: boolean;
   attributes: {
-    id: string;
+    id: string; // This is the attributeValueId (GUID)
     definitionName: string;
     displayName: string;
     dataType: 'Integer' | 'Decimal' | 'Boolean' | 'String';
@@ -42,6 +41,7 @@ interface ActivityTypesTabProps {
 }
 
 interface SelectedAttribute {
+  attributeValueId?: string; // GUID of the attribute value (for updates)
   definitionName: string;
   displayName: string;
   dataType: 'Integer' | 'Decimal' | 'Boolean' | 'String';
@@ -87,6 +87,7 @@ export function ActivityTypesTab({
         setFormName(item.name);
         setSelectedAttributes(
           item.attributes.map(attr => ({
+            attributeValueId: attr.id,
             definitionName: attr.definitionName,
             displayName: attr.displayName,
             dataType: attr.dataType,
@@ -110,6 +111,7 @@ export function ActivityTypesTab({
     setFormName(item.name);
     setSelectedAttributes(
       item.attributes.map(attr => ({
+        attributeValueId: attr.id,
         definitionName: attr.definitionName,
         displayName: attr.displayName,
         dataType: attr.dataType,
@@ -157,16 +159,11 @@ export function ActivityTypesTab({
 
     try {
       if (isEditing && editingId) {
-        // Update name
+        // Update name and attributes in one request
         setIsSaving(true);
-        await updateActivityType(editingId, { name: formName.trim() });
-
-        // Update attributes
-        await updateActivityTypeAttributes(editingId, {
-          attributeValues: selectedAttributes.map(attr => ({
-            definitionName: attr.definitionName,
-            stringValue: '',
-          })),
+        await updateActivityType(editingId, {
+          name: formName.trim(),
+          attributeValueIds: selectedAttributes.map(attr => attr.attributeValueId!).filter(Boolean),
         });
 
         toast.success('Тип обновлён');
@@ -196,16 +193,14 @@ export function ActivityTypesTab({
   }
 
   async function createActivityTypeWithAttributes(name: string, attributes: SelectedAttribute[]) {
-    // Create the type first
-    const response = await createActivityType({ name });
-
-    // Then add attributes
+    // For creation, we need to send definitionName so backend can create new AttributeValue entities
     const attributeValues = attributes.map(attr => ({
       definitionName: attr.definitionName,
       stringValue: '',
     }));
 
-    await updateActivityTypeAttributes(response.id, { attributeValues });
+    const response = await createActivityType({ name, attributeValues });
+    return response.id;
   }
 
   async function confirmDelete() {

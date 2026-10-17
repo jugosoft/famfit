@@ -147,7 +147,7 @@ export function useUpdateAttributeDefinitionMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { name?: string; displayName?: string; unit?: string; displayOrder?: number } }) =>
+    mutationFn: ({ id, data }: { id: string; data: { name?: string; displayName?: string; unit?: string } }) =>
       updateAttributeDefinition(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attribute-definitions'] });

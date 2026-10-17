@@ -12,7 +12,7 @@ import {
   getUsers,
 } from '@/api/client';
 import { ActivityTypesTab } from './ActivityTypesTab';
-import { AttributeDefinitionsTab } from './AttributeDefinitionsTab';
+import { AttributesTab } from './AttributesTab';
 import { UsersTab } from './UsersTab';
 
 // Helper to map ActivityTypeDto to ActivityTypeItem
@@ -44,7 +44,7 @@ export function AdminPage() {
   useEffect(() => {
     const pathSegments = location.pathname.split('/').filter(Boolean);
     const tabFromUrl = pathSegments.length > 1 ? pathSegments[1] : 'activity-types';
-    const validTabs = ['activity-types', 'attribute-definitions', 'users'];
+    const validTabs = ['activity-types', 'attributes', 'users'];
     if (tabFromUrl && validTabs.includes(tabFromUrl)) {
       setActiveTab(tabFromUrl);
     } else {
@@ -67,7 +67,7 @@ export function AdminPage() {
   const activityTypes = (rawActivityTypes || []).map(mapActivityType);
 
   const { data: attributeDefinitions = [] } = useQuery({
-    queryKey: ['attribute-definitions'],
+    queryKey: ['attributes'],
     queryFn: getActivityAttributeDefinitions
   });
 
@@ -78,7 +78,7 @@ export function AdminPage() {
 
   const tabItems = [
     { value: 'activity-types', label: 'Управление типами активностей' },
-    { value: 'attribute-definitions', label: 'Управление атрибутами' },
+    { value: 'attributes', label: 'Управление атрибутами' },
     { value: 'users', label: 'Реестр пользователей' },
   ];
 
@@ -103,7 +103,7 @@ export function AdminPage() {
         <Alert
           variant="destructive"
           title="Доступ запрещён"
-          description="У вас нет прав для доступа к админ-панели."
+          description="У вас нет прав для доступа к админ-панели или идите на хуй."
         />
       )}
 
@@ -121,8 +121,8 @@ export function AdminPage() {
         />
       )}
 
-      {activeTab === 'attribute-definitions' && (
-        <AttributeDefinitionsTab
+      {activeTab === 'attributes' && (
+        <AttributesTab
           attributeDefinitions={attributeDefinitions}
           pendingCreateTab={pendingCreateTab}
           onCreate={() => setPendingCreateTab(null)}

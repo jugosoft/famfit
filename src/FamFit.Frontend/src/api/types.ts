@@ -126,43 +126,12 @@ export interface CreateAttributeDefinitionRequest {
   displayName: string;
   dataType: 'Integer' | 'Decimal' | 'Boolean' | 'String';
   unit?: string;
-  displayOrder: number;
 }
 
 export interface UpdateAttributeDefinitionRequest {
   name?: string;
   displayName?: string;
   unit?: string;
-  displayOrder?: number;
-}
-
-/**
- * ==================== ActivityUnit ====================
- * Единицы измерения активностей
- */
-
-export interface ActivityUnitDto {
-  id: string;
-  name: string;
-  symbol: string;
-  dataType: 'Integer' | 'Decimal' | 'String';
-  isActive: boolean;
-  displayOrder: number;
-}
-
-export interface CreateActivityUnitRequest {
-  name: string;
-  symbol: string;
-  dataType: 'Integer' | 'Decimal' | 'String';
-  displayOrder: number;
-}
-
-export interface UpdateActivityUnitRequest {
-  name?: string;
-  symbol?: string;
-  dataType?: 'Integer' | 'Decimal' | 'String';
-  isActive?: boolean;
-  displayOrder?: number;
 }
 
 /**

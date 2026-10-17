@@ -84,7 +84,10 @@ export async function getActivityTypes(): Promise<ActivityTypeDto[]> {
   return http.get<ActivityTypeDto[]>('/activity-types');
 }
 
-export async function createActivityType(data: { name: string }): Promise<ActivityTypeDto> {
+export async function createActivityType(data: {
+  name: string;
+  attributeValues?: { definitionName: string; stringValue?: string }[];
+}): Promise<ActivityTypeDto> {
   return http.post<ActivityTypeDto>('/activity-types', data);
 }
 
@@ -100,19 +103,22 @@ export async function deactivateActivityType(id: string): Promise<void> {
   }
 }
 
-export async function updateActivityType(id: string, data: { name?: string }): Promise<void> {
+export async function updateActivityType(
+  id: string,
+  data: { name?: string; attributeValueIds?: string[] }
+): Promise<void> {
   await http.put<void>(`/activity-types/${id}`, data);
 }
 
 // ==================== Activity Type Attributes API ====================
 
 export async function getActivityAttributeDefinitions(): Promise<AttributeDefinitionDto[]> {
-  return http.get<AttributeDefinitionDto[]>('/activity-types/attributes');
+  return http.get<AttributeDefinitionDto[]>('/attributes');
 }
 
 export async function deactivateActivityAttributeDefinition(id: string): Promise<void> {
   try {
-    await http.put<void>(`/activity-types/attributes/${id}/deactivate`);
+    await http.put<void>(`/attributes/${id}/deactivate`);
   } catch (error: any) {
     // Если 409 Conflict — передаём сообщение об ошибке
     if (error?.response?.status === 409) {
@@ -128,18 +134,16 @@ export async function createAttributeDefinition(data: {
   displayName: string;
   dataType: 'Integer' | 'Decimal' | 'Boolean' | 'String';
   unit?: string;
-  displayOrder: number;
 }): Promise<AttributeDefinitionDto> {
-  return http.post<AttributeDefinitionDto>('/activity-types/attributes', data);
+  return http.post<AttributeDefinitionDto>('/attributes', data);
 }
 
 export async function updateAttributeDefinition(id: string, data: {
   name?: string;
   displayName?: string;
   unit?: string;
-  displayOrder?: number;
 }): Promise<AttributeDefinitionDto> {
-  return http.put<AttributeDefinitionDto>(`/activity-types/attributes/${id}`, data);
+  return http.put<AttributeDefinitionDto>(`/attributes/${id}`, data);
 }
 
 export async function updateActivityTypeAttributes(
