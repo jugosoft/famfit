@@ -93,8 +93,7 @@ public static class WorkoutTemplateEndpoints
                 i.ActivityType != null ? new
                 {
                     i.ActivityType.Id,
-                    i.ActivityType.Name,
-                    i.ActivityType.ActivityUnitId
+                    i.ActivityType.Name
                 } : null))
                 .ToList();
 

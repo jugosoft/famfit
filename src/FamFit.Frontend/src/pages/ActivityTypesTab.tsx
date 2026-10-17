@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Plus, Dumbbell, X, Check } from 'lucide-react';
+import { Plus, X, Check, ChevronDown } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { Dialog } from '@/components/ui/Dialog';
@@ -14,16 +13,15 @@ import { toast } from '@/components/ui/Toaster';
 import {
   createActivityType,
   deactivateActivityType,
+  updateActivityType,
+  updateActivityTypeAttributes,
 } from '@/api/client';
-import { useUpdateActivityTypeAttributes } from '@/hooks/useQueries';
-import type { ActivityUnitDto, AttributeDefinitionDto } from '@/api/types';
+import type { AttributeDefinitionDto } from '@/api/types';
 
 // Types
 interface ActivityTypeItem {
   id: string;
   name: string;
-  activityUnitId?: string;
-  unitSymbol?: string | null;
   isActive?: boolean;
   attributes: {
     id: string;
@@ -37,38 +35,41 @@ interface ActivityTypeItem {
 
 interface ActivityTypesTabProps {
   activityTypes: ActivityTypeItem[];
-  activityUnits: ActivityUnitDto[];
   attributeDefinitions: AttributeDefinitionDto[];
   isLoading: boolean;
   pendingCreateTab: string | null;
   onCreate: () => void;
 }
 
+interface SelectedAttribute {
+  definitionName: string;
+  displayName: string;
+  dataType: 'Integer' | 'Decimal' | 'Boolean' | 'String';
+  unit?: string | null;
+}
+
 export function ActivityTypesTab({
   activityTypes,
-  activityUnits,
   attributeDefinitions,
   isLoading,
   pendingCreateTab,
   onCreate,
 }: ActivityTypesTabProps) {
   const queryClient = useQueryClient();
-  const updateAttributesMutation = useUpdateActivityTypeAttributes();
 
   const [showDialog, setShowDialog] = useState(false);
-  const [showAttributesDialog, setShowAttributesDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteName, setDeleteName] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [attributesId, setAttributesId] = useState<string | null>(null);
   const [formName, setFormName] = useState('');
-  const [formActivityUnitId, setFormActivityUnitId] = useState<string>('');
-  const [attributeValues, setAttributeValues] = useState<Record<string, string>>({});
+  const [selectedAttributes, setSelectedAttributes] = useState<SelectedAttribute[]>([]);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showAttributeSelector, setShowAttributeSelector] = useState(false);
 
   const isEditing = editingId !== null;
-  const isSettingAttributes = attributesId !== null;
 
   // Open create dialog when pendingCreateTab matches
   useEffect(() => {
@@ -78,65 +79,74 @@ export function ActivityTypesTab({
     }
   }, [pendingCreateTab]);
 
-  // Sync form with selected item
+  // Sync form with selected item when editing
   useEffect(() => {
     if (editingId) {
       const item = activityTypes.find(t => t.id === editingId);
       if (item) {
         setFormName(item.name);
-        setFormActivityUnitId(item.activityUnitId ?? '');
+        setSelectedAttributes(
+          item.attributes.map(attr => ({
+            definitionName: attr.definitionName,
+            displayName: attr.displayName,
+            dataType: attr.dataType,
+            unit: attr.unit,
+          }))
+        );
       }
     }
   }, [editingId, activityTypes]);
 
-  useEffect(() => {
-    if (attributesId) {
-      const item = activityTypes.find(t => t.id === attributesId);
-      const initialValues: Record<string, string> = {};
-      if (item) {
-        for (const def of attributeDefinitions) {
-          const attr = item.attributes.find(a => a.definitionName === def.name);
-          initialValues[def.name] = attr ? formatValueForInput(attr.value, def.dataType) : '';
-        }
-      }
-      setAttributeValues(initialValues);
-    }
-  }, [attributesId, activityTypes, attributeDefinitions]);
-
-  function formatValueForInput(value: unknown, dataType: string): string {
-    if (value === null || value === undefined) return '';
-    if (dataType === 'Boolean') return String(!!value);
-    return String(value);
-  }
-
-  function getValueForApi(_defName: string, inputValue: string, dataType: string) {
-    if (!inputValue.trim()) return null;
-    switch (dataType) {
-      case 'Integer': return parseInt(inputValue);
-      case 'Decimal': return parseFloat(inputValue);
-      case 'Boolean': return inputValue.toLowerCase() === 'true';
-      case 'String': return inputValue;
-      default: return inputValue;
-    }
-  }
-
   function openCreateDialog() {
     setEditingId(null);
     setFormName('');
-    setFormActivityUnitId('');
+    setSelectedAttributes([]);
     setShowDialog(true);
+    setShowAttributeSelector(false);
   }
 
   function openEditDialog(item: ActivityTypeItem) {
     setEditingId(item.id);
     setFormName(item.name);
-    setFormActivityUnitId(item.activityUnitId ?? '');
+    setSelectedAttributes(
+      item.attributes.map(attr => ({
+        definitionName: attr.definitionName,
+        displayName: attr.displayName,
+        dataType: attr.dataType,
+        unit: attr.unit,
+      }))
+    );
     setShowDialog(true);
+    setShowAttributeSelector(false);
   }
 
-  function openAttributesDialog(item: ActivityTypeItem) {
-    setAttributesId(item.id);
-    setShowAttributesDialog(true);
+  function openDeleteDialog(id: string, name: string) {
+    setDeleteId(id);
+    setDeleteName(name);
+    setShowDeleteDialog(true);
+  }
+
+  function getAvailableDefinitions() {
+    return attributeDefinitions.filter(
+      def => !selectedAttributes.some(attr => attr.definitionName === def.name)
+    );
+  }
+
+  function addAttribute(definition: AttributeDefinitionDto) {
+    setSelectedAttributes(prev => [
+      ...prev,
+      {
+        definitionName: definition.name,
+        displayName: definition.displayName,
+        dataType: definition.dataType,
+        unit: definition.unit,
+      },
+    ]);
+    setShowAttributeSelector(false);
+  }
+
+  function removeAttribute(definitionName: string) {
+    setSelectedAttributes(prev => prev.filter(attr => attr.definitionName !== definitionName));
   }
 
   async function handleSave() {
@@ -145,56 +155,57 @@ export function ActivityTypesTab({
       return;
     }
 
-    if (!formActivityUnitId) {
-      toast.error('Ошибка', 'Выберите единицу измерения');
-      return;
-    }
-
     try {
-      await createActivityType({
-        name: formName.trim(),
-        activityUnitId: formActivityUnitId
-      });
+      if (isEditing && editingId) {
+        // Update name
+        setIsSaving(true);
+        await updateActivityType(editingId, { name: formName.trim() });
 
-      toast.success('Тип создан');
+        // Update attributes
+        await updateActivityTypeAttributes(editingId, {
+          attributeValues: selectedAttributes.map(attr => ({
+            definitionName: attr.definitionName,
+            stringValue: '',
+          })),
+        });
+
+        toast.success('Тип обновлён');
+      } else {
+        // Create new type
+        setIsCreating(true);
+
+        // Add attributes if any
+        if (selectedAttributes.length > 0) {
+          await createActivityTypeWithAttributes(formName.trim(), selectedAttributes);
+        } else {
+          await createActivityType({ name: formName.trim() });
+        }
+
+        toast.success('Тип создан');
+      }
+
       setShowDialog(false);
+      setSelectedAttributes([]);
       queryClient.invalidateQueries({ queryKey: ['activity-types'] });
     } catch (error: any) {
-      toast.error('Ошибка', error.message || 'Не удалось создать тип');
+      toast.error('Ошибка', error.message || 'Не удалось сохранить тип');
+    } finally {
+      setIsCreating(false);
+      setIsSaving(false);
     }
   }
 
-  async function handleSaveAttributes() {
-    if (!attributesId) return;
+  async function createActivityTypeWithAttributes(name: string, attributes: SelectedAttribute[]) {
+    // Create the type first
+    const response = await createActivityType({ name });
 
-    const attributeValuesToSend = attributeDefinitions
-      .filter(def => attributeValues[def.name] !== undefined)
-      .map(def => ({
-        definitionName: def.name,
-        [def.dataType === 'Integer' ? 'intValue' :
-         def.dataType === 'Decimal' ? 'decimalValue' :
-         def.dataType === 'Boolean' ? 'boolValue' : 'stringValue']:
-          getValueForApi(def.name, attributeValues[def.name] || '', def.dataType)
-      }));
+    // Then add attributes
+    const attributeValues = attributes.map(attr => ({
+      definitionName: attr.definitionName,
+      stringValue: '',
+    }));
 
-    try {
-      await updateAttributesMutation.mutateAsync({
-        activityTypeId: attributesId,
-        attributeValues: attributeValuesToSend
-      });
-
-      toast.success('Атрибуты обновлены');
-      setShowAttributesDialog(false);
-      queryClient.invalidateQueries({ queryKey: ['activity-types'] });
-    } catch (error: any) {
-      toast.error('Ошибка', error.message || 'Не удалось обновить атрибуты');
-    }
-  }
-
-  function openDeleteDialog(id: string, name: string) {
-    setDeleteId(id);
-    setDeleteName(name);
-    setShowDeleteDialog(true);
+    await updateActivityTypeAttributes(response.id, { attributeValues });
   }
 
   async function confirmDelete() {
@@ -211,10 +222,6 @@ export function ActivityTypesTab({
       setIsDeleting(false);
       setShowDeleteDialog(false);
     }
-  }
-
-  function clearField(defName: string) {
-    setAttributeValues(prev => ({ ...prev, [defName]: '' }));
   }
 
   return (
@@ -246,74 +253,51 @@ export function ActivityTypesTab({
               <TableHeader>
                 <TableRow>
                   <TableHead>Название</TableHead>
-                  <TableHead>Единица</TableHead>
                   <TableHead>Атрибуты</TableHead>
                   <TableHead>Статус</TableHead>
                   <TableHead className="text-right">Действия</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {activityTypes.map((item) => {
-                  const activityUnit = activityUnits.find(u => u.id === item.activityUnitId);
-                  return (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">
-                          {activityUnit?.name || '—'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {item.attributes.length > 0 ? (
-                          <div className="text-xs space-y-1">
-                            {item.attributes.map((attr) => (
-                              <div key={attr.id}>
-                                {attr.displayName}:{' '}
-                                {attr.value !== null && attr.value !== undefined
-                                  ? `${attr.value}${attr.unit ? ` ${attr.unit}` : ''}`
-                                  : '—'}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">Не заданы</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={item.isActive !== false ? 'default' : 'secondary'}>
-                          {item.isActive !== false ? 'Активен' : 'Неактивен'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEditDialog(item)}
-                            title="Редактировать"
-                          >
-                            <Dumbbell className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openAttributesDialog(item)}
-                            title="Редактировать атрибуты"
-                          >
-                            <Dumbbell className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openDeleteDialog(item.id, item.name)}
-                          >
-                            <X className="h-4 w-4 text-destructive" />
-                          </Button>
+                {activityTypes.map((item) => (
+                  <TableRow
+                    key={item.id}
+                    onClick={() => openEditDialog(item)}
+                    className="cursor-pointer hover:bg-muted/50"
+                  >
+                    <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableCell>
+                      {item.attributes.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {item.attributes.map((attr) => (
+                            <Badge key={attr.id} variant="secondary" className="text-xs">
+                              {attr.displayName}
+                            </Badge>
+                          ))}
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                      ) : (
+                        <span className="text-muted-foreground">Не заданы</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={item.isActive !== false ? 'default' : 'secondary'}>
+                        {item.isActive !== false ? 'Активен' : 'Неактивен'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openDeleteDialog(item.id, item.name)}
+                          title="Деактивировать"
+                        >
+                          <X className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           )}
@@ -325,7 +309,7 @@ export function ActivityTypesTab({
         open={showDialog}
         onOpenChange={setShowDialog}
         title={isEditing ? 'Редактировать тип' : 'Новый тип активности'}
-        description={isEditing ? 'Измените название и единицу измерения' : 'Создайте новый тип активности для семьи'}
+        description={isEditing ? 'Измените название и атрибуты' : 'Создайте новый тип активности для семьи'}
       >
         <div className="space-y-4">
           <Input
@@ -336,15 +320,61 @@ export function ActivityTypesTab({
             maxLength={100}
           />
 
-          <div>
-            <label className="text-sm font-medium leading-none">Единица измерения</label>
-            <Select
-              items={activityUnits
-                .filter(u => u.isActive)
-                .map(u => ({ value: u.id, label: u.name }))}
-              value={formActivityUnitId}
-              onValueChange={setFormActivityUnitId}
-            />
+          {/* Selected attributes */}
+          <div className="border border-border rounded-lg p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium leading-none">Атрибуты</label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAttributeSelector(!showAttributeSelector)}
+                disabled={getAvailableDefinitions().length === 0}
+              >
+                <Plus className="mr-1 h-3 w-3" />
+                Добавить атрибут
+                <ChevronDown className={`ml-1 h-3 w-3 transition-transform ${showAttributeSelector ? 'rotate-180' : ''}`} />
+              </Button>
+            </div>
+
+            {/* Attribute selector dropdown */}
+            {showAttributeSelector && (
+              <div className="space-y-1 mt-2 border border-border rounded-md p-2 max-h-40 overflow-y-auto">
+                {getAvailableDefinitions().length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Все атрибуты уже добавлены</p>
+                ) : (
+                  getAvailableDefinitions().map((def) => (
+                    <button
+                      key={def.id}
+                      className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-muted flex items-center justify-between"
+                      onClick={() => addAttribute(def)}
+                    >
+                      <span>{def.displayName}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {def.unit && `(${def.unit})`}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Selected attributes list */}
+            {selectedAttributes.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {selectedAttributes.map((attr) => (
+                  <Badge key={attr.definitionName} variant="secondary" className="text-xs flex items-center gap-1">
+                    {attr.displayName}
+                    <button
+                      onClick={() => removeAttribute(attr.definitionName)}
+                      className="ml-1 hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 justify-end">
@@ -352,72 +382,9 @@ export function ActivityTypesTab({
               <X className="mr-2 h-4 w-4" />
               Отмена
             </Button>
-            <Button onClick={handleSave}>
+            <Button onClick={handleSave} isLoading={isCreating || isSaving}>
               <Check className="mr-2 h-4 w-4" />
               {isEditing ? 'Сохранить' : 'Создать'}
-            </Button>
-          </div>
-        </div>
-      </Dialog>
-
-      {/* Attributes Dialog */}
-      <Dialog
-        open={showAttributesDialog}
-        onOpenChange={setShowAttributesDialog}
-        title="Атрибуты активности"
-        description={isSettingAttributes ? 'Настройте значения атрибутов для этой активности' : ''}
-      >
-        <div className="space-y-4">
-          {attributeDefinitions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Определения атрибутов не загружены.</p>
-          ) : (
-            <>
-              <p className="text-sm text-muted-foreground">
-                Укажите значения для атрибутов. Оставьте пустыми, если не применяется.
-              </p>
-
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {attributeDefinitions.map((def) => (
-                  <div key={def.id} className="relative">
-                    <label className="text-sm font-medium leading-none">
-                      {def.displayName}
-                      {def.unit && <span className="text-muted-foreground ml-1">({def.unit})</span>}
-                    </label>
-                    <div className="flex gap-2 mt-1">
-                      <Input
-                        type={def.dataType === 'Integer' || def.dataType === 'Decimal' ? 'number' : 'text'}
-                        placeholder={def.displayName}
-                        value={attributeValues[def.name] || ''}
-                        onChange={(e) => setAttributeValues(prev => ({ ...prev, [def.name]: e.target.value }))}
-                        step={def.dataType === 'Decimal' ? '0.1' : undefined}
-                        min={def.dataType === 'Integer' || def.dataType === 'Decimal' ? '0' : undefined}
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => clearField(def.name)}
-                        className="shrink-0"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          <div className="flex gap-3 justify-end">
-            <Button variant="outline" onClick={() => setShowAttributesDialog(false)}>
-              <X className="mr-2 h-4 w-4" />
-              Отмена
-            </Button>
-            <Button
-              onClick={handleSaveAttributes}
-              isLoading={updateAttributesMutation.isPending}
-            >
-              <Check className="mr-2 h-4 w-4" />
-              Сохранить
             </Button>
           </div>
         </div>

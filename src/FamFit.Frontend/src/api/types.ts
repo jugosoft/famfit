@@ -115,12 +115,25 @@ export interface UpdateActivityTypeAttributesRequest {
 
 export interface CreateActivityTypeRequest {
   name: string;
-  activityUnitId: string;
 }
 
 export interface UpdateActivityTypeRequest {
   name?: string;
-  activityUnitId?: string;
+}
+
+export interface CreateAttributeDefinitionRequest {
+  name: string;
+  displayName: string;
+  dataType: 'Integer' | 'Decimal' | 'Boolean' | 'String';
+  unit?: string;
+  displayOrder: number;
+}
+
+export interface UpdateAttributeDefinitionRequest {
+  name?: string;
+  displayName?: string;
+  unit?: string;
+  displayOrder?: number;
 }
 
 /**

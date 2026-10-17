@@ -7,14 +7,11 @@ import type {
   UserDto,
   UpdateUserRequest,
   ActivityTypeDto,
-  CreateActivityTypeRequest,
-  UpdateActivityTypeRequest,
   AttributeInput,
   AttributeDefinitionDto,
   ActivityLogDto,
   LogActivityRequest,
   PagedResponse,
-  PushSubscriptionDto,
   RegisterPushSubscriptionRequest,
   VapidPublicKeyResponse,
   WorkoutDto,
@@ -23,10 +20,7 @@ import type {
   WorkoutTemplateDto,
   WorkoutTemplateListDto,
   CreateWorkoutTemplateRequest,
-  AddWorkoutTemplateItemRequest,
-  ActivityUnitDto,
-  CreateActivityUnitRequest,
-  UpdateActivityUnitRequest
+  AddWorkoutTemplateItemRequest
 } from '@/api/types';
 
 // ==================== Auth API ====================
@@ -90,24 +84,7 @@ export async function getActivityTypes(): Promise<ActivityTypeDto[]> {
   return http.get<ActivityTypeDto[]>('/activity-types');
 }
 
-export async function getActivityAttributeDefinitions(): Promise<AttributeDefinitionDto[]> {
-  return http.get<AttributeDefinitionDto[]>('/activity-types/definitions');
-}
-
-export async function deactivateActivityAttributeDefinition(id: string): Promise<void> {
-  try {
-    await http.put<void>(`/activity-types/definitions/${id}/deactivate`);
-  } catch (error: any) {
-    // Если 409 Conflict — передаём сообщение об ошибке
-    if (error?.response?.status === 409) {
-      const detail = error?.response?.data?.message || 'Определение атрибута используется в значениях и не может быть деактивировано';
-      throw new Error(detail);
-    }
-    throw error;
-  }
-}
-
-export async function createActivityType(data: CreateActivityTypeRequest): Promise<ActivityTypeDto> {
+export async function createActivityType(data: { name: string }): Promise<ActivityTypeDto> {
   return http.post<ActivityTypeDto>('/activity-types', data);
 }
 
@@ -123,81 +100,53 @@ export async function deactivateActivityType(id: string): Promise<void> {
   }
 }
 
-export async function updateActivityType(id: string, data: UpdateActivityTypeRequest): Promise<void> {
+export async function updateActivityType(id: string, data: { name?: string }): Promise<void> {
   await http.put<void>(`/activity-types/${id}`, data);
 }
 
-// ==================== Activity Units API ====================
+// ==================== Activity Type Attributes API ====================
 
-export async function getActivityUnits(): Promise<ActivityUnitDto[]> {
-  return http.get<ActivityUnitDto[]>('/activity-units');
+export async function getActivityAttributeDefinitions(): Promise<AttributeDefinitionDto[]> {
+  return http.get<AttributeDefinitionDto[]>('/activity-types/attributes');
 }
 
-export async function createActivityUnit(data: CreateActivityUnitRequest): Promise<ActivityUnitDto> {
-  return http.post<ActivityUnitDto>('/activity-units', data);
-}
-
-export async function updateActivityUnit(id: string, data: UpdateActivityUnitRequest): Promise<void> {
-  await http.put<void>(`/activity-units/${id}`, data);
-}
-
-export async function deactivateActivityUnit(id: string): Promise<void> {
+export async function deactivateActivityAttributeDefinition(id: string): Promise<void> {
   try {
-    await http.put<void>(`/activity-units/${id}/deactivate`);
+    await http.put<void>(`/activity-types/attributes/${id}/deactivate`);
   } catch (error: any) {
+    // Если 409 Conflict — передаём сообщение об ошибке
     if (error?.response?.status === 409) {
-      const detail = error?.response?.data?.message || 'Единица измерения используется в активных типах активностей';
+      const detail = error?.response?.data?.message || 'Атрибут используется в значениях и не может быть деактивирован';
       throw new Error(detail);
     }
     throw error;
   }
 }
 
-// ==================== Activity Logs API ====================
-
-export async function getActivityLogs(
-  userId: string,
-  page = 1,
-  pageSize = 20
-): Promise<PagedResponse<ActivityLogDto>> {
-  return http.get<PagedResponse<ActivityLogDto>>(
-    `/activity-logs?userId=${userId}&page=${page}&pageSize=${pageSize}`
-  );
+export async function createAttributeDefinition(data: {
+  name: string;
+  displayName: string;
+  dataType: 'Integer' | 'Decimal' | 'Boolean' | 'String';
+  unit?: string;
+  displayOrder: number;
+}): Promise<AttributeDefinitionDto> {
+  return http.post<AttributeDefinitionDto>('/activity-types/attributes', data);
 }
 
-export async function logActivity(data: LogActivityRequest): Promise<ActivityLogDto> {
-  return http.post<ActivityLogDto>('/activity-logs', data);
+export async function updateAttributeDefinition(id: string, data: {
+  name?: string;
+  displayName?: string;
+  unit?: string;
+  displayOrder?: number;
+}): Promise<AttributeDefinitionDto> {
+  return http.put<AttributeDefinitionDto>(`/activity-types/attributes/${id}`, data);
 }
-
-export async function logActivityWithNotification(data: LogActivityRequest): Promise<ActivityLogDto> {
-  return http.post<ActivityLogDto>('/activity-logs/with-notification', data);
-}
-
-// ==================== Push Subscriptions API ====================
-
-export async function registerPushSubscription(data: RegisterPushSubscriptionRequest): Promise<PushSubscriptionDto> {
-  return http.post<PushSubscriptionDto>('/push-subscriptions', data);
-}
-
-export async function deletePushSubscription(id: string): Promise<void> {
-  await http.delete<void>(`/push-subscriptions/${id}`);
-}
-
-// ==================== VAPID API ====================
-
-export async function getVapidPublicKey(): Promise<VapidPublicKeyResponse> {
-  return http.get<VapidPublicKeyResponse>('/vapid/public-key');
-}
-
-// ==================== Activity Type Attributes API ====================
 
 export async function updateActivityTypeAttributes(
   activityTypeId: string,
-  data: AttributeInput[]
+  data: { attributeValues: AttributeInput[] }
 ): Promise<void> {
-  await http.put<void>(`/activity-types/${activityTypeId}/attributes`, {
-    attributeValues: data
-  });
+  await http.put<void>(`/activity-types/${activityTypeId}/attributes`, data);
 }
 
 // ==================== Workout API ====================
@@ -262,4 +211,40 @@ export async function removeWorkoutTemplateItem(
 
 export async function deleteWorkoutTemplate(id: string): Promise<void> {
   await http.delete<void>(`/workout-templates/${id}`);
+}
+
+// ==================== Activity Logs API ====================
+
+export async function getActivityLogs(
+  userId: string,
+  page = 1,
+  pageSize = 20
+): Promise<PagedResponse<ActivityLogDto>> {
+  return http.get<PagedResponse<ActivityLogDto>>(
+    `/activity-logs?userId=${userId}&page=${page}&pageSize=${pageSize}`
+  );
+}
+
+export async function logActivity(data: LogActivityRequest): Promise<ActivityLogDto> {
+  return http.post<ActivityLogDto>('/activity-logs', data);
+}
+
+export async function logActivityWithNotification(data: LogActivityRequest): Promise<ActivityLogDto> {
+  return http.post<ActivityLogDto>('/activity-logs/with-notification', data);
+}
+
+// ==================== Push Subscription API ====================
+
+export async function registerPushSubscription(data: RegisterPushSubscriptionRequest): Promise<void> {
+  await http.post<void>('/push/subscribe', data);
+}
+
+export async function deletePushSubscription(subscriptionId: string): Promise<void> {
+  await http.delete<void>(`/push/${subscriptionId}`);
+}
+
+// ==================== Vapid Public Key API ====================
+
+export async function getVapidPublicKey(): Promise<VapidPublicKeyResponse> {
+  return http.get<VapidPublicKeyResponse>('/push/vapid-key');
 }

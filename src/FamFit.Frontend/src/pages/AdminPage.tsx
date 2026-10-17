@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import { Alert } from '@/components/ui/Alert';
@@ -7,13 +8,11 @@ import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   getActivityTypes,
-  getActivityUnits,
   getActivityAttributeDefinitions,
   getUsers,
 } from '@/api/client';
-import type { ActivityUnitDto } from '@/api/types';
 import { ActivityTypesTab } from './ActivityTypesTab';
-import { ActivityUnitsTab } from './ActivityUnitsTab';
+import { AttributeDefinitionsTab } from './AttributeDefinitionsTab';
 import { UsersTab } from './UsersTab';
 
 // Helper to map ActivityTypeDto to ActivityTypeItem
@@ -21,8 +20,6 @@ function mapActivityType(dto: any) {
   return {
     id: dto.id,
     name: dto.name,
-    activityUnitId: dto.activityUnitId || dto.unitId || '',
-    unitSymbol: dto.unitSymbol || null,
     isActive: dto.isActive !== false,
     attributes: (dto.attributes || []).map((attr: any) => ({
       id: attr.id || crypto.randomUUID(),
@@ -37,14 +34,30 @@ function mapActivityType(dto: any) {
 
 export function AdminPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const [activeTab, setActiveTab] = useState('activity-types');
   const [pendingCreateTab, setPendingCreateTab] = useState<string | null>(null);
 
-  const { data: activityUnits = [] } = useQuery<ActivityUnitDto[]>({
-    queryKey: ['activity-units'],
-    queryFn: getActivityUnits,
-  });
+  // Initialize activeTab from URL path
+  useEffect(() => {
+    const pathSegments = location.pathname.split('/').filter(Boolean);
+    const tabFromUrl = pathSegments.length > 1 ? pathSegments[1] : 'activity-types';
+    const validTabs = ['activity-types', 'attribute-definitions', 'users'];
+    if (tabFromUrl && validTabs.includes(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    } else {
+      // Redirect to default tab if unknown path
+      navigate('/admin/activity-types', { replace: true });
+    }
+  }, [location.pathname, navigate]);
+
+  // Update URL when activeTab changes
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    navigate(`/admin/${tab}`, { replace: true });
+  };
 
   const { data: rawActivityTypes, isLoading: isLoadingTypes } = useQuery({
     queryKey: ['activity-types'],
@@ -65,7 +78,7 @@ export function AdminPage() {
 
   const tabItems = [
     { value: 'activity-types', label: 'Управление типами активностей' },
-    { value: 'activity-units', label: 'Управление единицами измерения' },
+    { value: 'attribute-definitions', label: 'Управление атрибутами' },
     { value: 'users', label: 'Реестр пользователей' },
   ];
 
@@ -83,12 +96,6 @@ export function AdminPage() {
             Добавить тип
           </Button>
         )}
-        {activeTab === 'activity-units' && (
-          <Button onClick={() => setPendingCreateTab('activity-units')}>
-            <Plus className="mr-2 h-4 w-4" />
-            Добавить единицу
-          </Button>
-        )}
       </div>
 
       {/* Role Check */}
@@ -101,13 +108,12 @@ export function AdminPage() {
       )}
 
       {/* Tabs */}
-      <Tabs items={tabItems} value={activeTab} onValueChange={setActiveTab} />
+      <Tabs items={tabItems} value={activeTab} onValueChange={handleTabChange} />
 
       {/* Tab Content */}
       {activeTab === 'activity-types' && (
         <ActivityTypesTab
           activityTypes={activityTypes}
-          activityUnits={activityUnits}
           attributeDefinitions={attributeDefinitions}
           isLoading={isLoadingTypes}
           pendingCreateTab={pendingCreateTab}
@@ -115,9 +121,9 @@ export function AdminPage() {
         />
       )}
 
-      {activeTab === 'activity-units' && (
-        <ActivityUnitsTab
-          activityUnits={activityUnits}
+      {activeTab === 'attribute-definitions' && (
+        <AttributeDefinitionsTab
+          attributeDefinitions={attributeDefinitions}
           pendingCreateTab={pendingCreateTab}
           onCreate={() => setPendingCreateTab(null)}
         />

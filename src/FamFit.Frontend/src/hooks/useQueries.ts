@@ -6,6 +6,9 @@ import {
 import {
   getActivityTypes,
   getActivityAttributeDefinitions,
+  deactivateActivityAttributeDefinition,
+  createAttributeDefinition,
+  updateAttributeDefinition,
   getActivityLogs,
   logActivity,
   logActivityWithNotification,
@@ -25,13 +28,8 @@ import {
   addWorkoutTemplateItem,
   removeWorkoutTemplateItem,
   deleteWorkoutTemplate,
-  getActivityUnits,
-  createActivityUnit,
-  updateActivityUnit,
-  deactivateActivityUnit
 } from '@/api/client';
 import { ApiError } from '@/lib/errors';
-import type { UpdateActivityUnitRequest } from '@/api/types';
 
 // ==================== Auth Queries ====================
 
@@ -62,17 +60,6 @@ export function useAttributeDefinitions() {
   return useQuery({
     queryKey: ['attribute-definitions'],
     queryFn: getActivityAttributeDefinitions,
-    staleTime: 1000 * 60 * 60,
-    gcTime: 1000 * 60 * 60 * 24
-  });
-}
-
-// ==================== Activity Units Queries ====================
-
-export function useActivityUnits() {
-  return useQuery({
-    queryKey: ['activity-units'],
-    queryFn: getActivityUnits,
     staleTime: 1000 * 60 * 60,
     gcTime: 1000 * 60 * 60 * 24
   });
@@ -138,45 +125,43 @@ export function useUpdateActivityTypeAttributes() {
 
   return useMutation({
     mutationFn: (data: { activityTypeId: string; attributeValues: { definitionName: string; intValue?: number | null; decimalValue?: number | null; boolValue?: boolean | null; stringValue?: string | null }[] }) =>
-      updateActivityTypeAttributes(data.activityTypeId, data.attributeValues),
+      updateActivityTypeAttributes(data.activityTypeId, { attributeValues: data.attributeValues }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activity-types'] });
     }
   });
 }
 
-// ==================== Activity Unit Mutations ====================
-
-export function useCreateActivityUnit() {
+export function useCreateAttributeDefinitionMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: createActivityUnit,
+    mutationFn: createAttributeDefinition,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['activity-units'] });
+      queryClient.invalidateQueries({ queryKey: ['attribute-definitions'] });
     }
   });
 }
 
-export function useUpdateActivityUnitMutation() {
+export function useUpdateAttributeDefinitionMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateActivityUnitRequest }) =>
-      updateActivityUnit(id, data),
+    mutationFn: ({ id, data }: { id: string; data: { name?: string; displayName?: string; unit?: string; displayOrder?: number } }) =>
+      updateAttributeDefinition(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['activity-units'] });
+      queryClient.invalidateQueries({ queryKey: ['attribute-definitions'] });
     }
   });
 }
 
-export function useDeactivateActivityUnit() {
+export function useDeactivateAttributeDefinition() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: deactivateActivityUnit,
+    mutationFn: deactivateActivityAttributeDefinition,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['activity-units'] });
+      queryClient.invalidateQueries({ queryKey: ['attribute-definitions'] });
     }
   });
 }

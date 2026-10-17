@@ -1,6 +1,7 @@
 using FamFit.Application.Commands.ActivityAttributes;
 using FamFit.Application.Commands.ActivityTypes;
 using FamFit.Application.Queries.ActivityAttributes;
+using FamFit.Domain.Entities;
 using FamFit.Domain.Enums;
 using FamFit.Infrastructure.Data;
 using FamFit.WebApi.Models;
@@ -8,7 +9,6 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query;
 
 namespace FamFit.WebApi.Endpoints;
 
@@ -30,8 +30,6 @@ public static class ActivityTypeEndpoints
     public record ActivityTypeDto(
         Guid Id,
         string Name,
-        Guid ActivityUnitId,
-        string? UnitSymbol,
         bool IsActive,
         IReadOnlyList<AttributeValueDto> Attributes);
 
@@ -71,8 +69,6 @@ public static class ActivityTypeEndpoints
                 {
                     at.Id,
                     at.Name,
-                    at.ActivityUnitId,
-                    at.ActivityUnit,
                     at.IsActive,
                     Attributes = at.ActivityTypeAttributeValues
                         .Where(atav => atav.AttributeValue != null)
@@ -95,8 +91,6 @@ public static class ActivityTypeEndpoints
             var result = types.Select(at => new ActivityTypeDto(
                 at.Id,
                 at.Name,
-                at.ActivityUnitId ?? Guid.Empty,
-                at.ActivityUnit != null ? at.ActivityUnit.Symbol : null,
                 at.IsActive,
                 at.Attributes.Select(a => new AttributeValueDto(
                     a.Id,
@@ -116,14 +110,16 @@ public static class ActivityTypeEndpoints
 
         // POST /api/activity-types — создать новый тип
         group.MapPost("/", async (
-            CreateActivityTypeCommand command,
+            [FromBody] CreateActivityTypeRequest request,
             IMediator mediator) =>
         {
+            var command = new CreateActivityTypeCommand(request.Name);
+
             var result = await mediator.Send(command);
 
             return Results.Created(
                 $"/api/activity-types/{result.Id}",
-                new { result.Id, result.Name, result.ActivityUnitId });
+                new { result.Id, result.Name });
         })
         .WithSummary("Создать новый тип активности")
         .WithDescription("Создаёт новый тип активности. Доступно только для FamilyAdmin.")
@@ -276,8 +272,82 @@ public static class ActivityTypeEndpoints
 
         // === Attribute Definitions Endpoints ===
 
-        // PUT /api/activity-types/definitions/{id}/deactivate — деактивировать определение атрибута
-        group.MapPut("/definitions/{id:guid}/deactivate", async (
+        // POST /api/activity-types/attributes — создать определение атрибута
+        group.MapPost("/attributes", async (
+            [FromBody] CreateAttributeDefinitionRequest request,
+            FamFitDbContext db) =>
+        {
+            // Проверка уникальности по имени
+            var exists = await db.ActivityAttributeDefinitions
+                .AnyAsync(d => d.Name == request.Name);
+            if (exists)
+                return Results.Conflict(new { error = "AttributeAlreadyExists", message = "Атрибут с таким именем уже существует." });
+
+            var definition = ActivityAttributeDefinition.Create(
+                request.Name,
+                request.DisplayName,
+                request.DataType,
+                request.Unit,
+                request.DisplayOrder);
+
+            db.ActivityAttributeDefinitions.Add(definition);
+            await db.SaveChangesAsync();
+
+            return Results.Created(
+                $"/api/activity-types/attributes/{definition.Id}",
+                new { definition.Id, definition.Name, definition.DisplayName, definition.DataType, definition.Unit, definition.DisplayOrder });
+        })
+        .WithSummary("Создать определение атрибута")
+        .RequireAuthorization("Admin")
+        .Produces<Guid>(StatusCodes.Status201Created)
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status409Conflict);
+
+        // PUT /api/activity-types/attributes/{id} — обновить определение атрибута
+        group.MapPut("/attributes/{id:guid}", async (
+            Guid id,
+            [FromBody] UpdateAttributeDefinitionRequest request,
+            FamFitDbContext db) =>
+        {
+            var definition = await db.ActivityAttributeDefinitions.FindAsync(id);
+            if (definition is null)
+                return Results.NotFound();
+
+            if (!string.IsNullOrWhiteSpace(request.Name))
+            {
+                if (request.Name.Length > 100)
+                    return Results.BadRequest(new { error = "Name too long." });
+                definition.UpdateName(request.Name);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.DisplayName))
+            {
+                if (request.DisplayName.Length > 100)
+                    return Results.BadRequest(new { error = "Display name too long." });
+                definition.UpdateDisplayName(request.DisplayName);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Unit))
+            {
+                definition.UpdateUnit(request.Unit);
+            }
+
+            if (request.DisplayOrder.HasValue)
+            {
+                definition.UpdateDisplayOrder(request.DisplayOrder.Value);
+            }
+
+            await db.SaveChangesAsync();
+
+            return Results.Ok(new { definition.Id, definition.Name, definition.DisplayName, definition.DataType, definition.Unit, definition.DisplayOrder });
+        })
+        .WithSummary("Обновить определение атрибута")
+        .RequireAuthorization("Admin")
+        .Produces<object>()
+        .Produces(StatusCodes.Status404NotFound);
+
+        // PUT /api/activity-types/attributes/{id}/deactivate — деактивировать определение атрибута
+        group.MapPut("/attributes/{id:guid}/deactivate", async (
             Guid id,
             FamFitDbContext db) =>
         {
@@ -293,8 +363,8 @@ public static class ActivityTypeEndpoints
             {
                 return Results.Conflict(new
                 {
-                    error = "AttributeDefinitionInUse",
-                    message = $"Невозможно деактивировать определение атрибута, так как оно используется в значениях атрибутов. Сначала удалите связанные записи.",
+                    error = "AttributeInUse",
+                    message = $"Невозможно деактивировать атрибут, так как он используется в значениях атрибутов. Сначала удалите связанные записи.",
                     references = new[] { "значений атрибутов" }
                 });
             }
@@ -304,16 +374,16 @@ public static class ActivityTypeEndpoints
 
             return Results.Ok(new { id, isActive = false });
         })
-        .WithSummary("Деактивировать определение атрибута")
-        .WithDescription("Делает определение атрибута неактивным. Доступно только для FamilyAdmin. Возвращает 409, если определение используется.")
+        .WithSummary("Деактивировать атрибут")
+        .WithDescription("Делает атрибут неактивным. Доступно только для FamilyAdmin. Возвращает 409, если атрибут используется.")
         .RequireAuthorization("Admin")
         .Produces<object>()
         .Produces(StatusCodes.Status404NotFound)
         .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status409Conflict);
 
-        // GET /api/activity-types/definitions — список определений
-        group.MapGet("/definitions", async (IMediator mediator) =>
+        // GET /api/activity-types/attributes — список определений
+        group.MapGet("/attributes", async (IMediator mediator) =>
         {
             var definitions = await mediator.Send(new GetActivityAttributeDefinitionsQuery());
             return Results.Ok(definitions.Select(d => new AttributeDefinitionDto(
@@ -330,7 +400,7 @@ public static class ActivityTypeEndpoints
         .Produces<List<AttributeDefinitionDto>>()
         .Produces(StatusCodes.Status500InternalServerError);
 
-        // PUT /api/activity-types/{id} — обновить название и единицу измерения
+        // PUT /api/activity-types/{id} — обновить название
         group.MapPut("/{id:guid}", async (
             Guid id,
             [FromBody] UpdateActivityTypeRequest request,
@@ -347,14 +417,9 @@ public static class ActivityTypeEndpoints
                 activityType.UpdateName(request.Name);
             }
 
-            if (request.ActivityUnitId.HasValue)
-            {
-                activityType.UpdateUnit(request.ActivityUnitId.Value);
-            }
-
             await db.SaveChangesAsync();
 
-            return Results.Ok(new { id, activityType.Name, activityType.ActivityUnitId });
+            return Results.Ok(new { id, activityType.Name });
         })
         .WithSummary("Обновить тип активности")
         .RequireAuthorization("Admin")
@@ -365,4 +430,19 @@ public static class ActivityTypeEndpoints
     }
 }
 
-public record UpdateActivityTypeRequest(string? Name, Guid? ActivityUnitId);
+public record CreateActivityTypeRequest(string Name);
+
+public record UpdateActivityTypeRequest(string? Name);
+
+public record CreateAttributeDefinitionRequest(
+    string Name,
+    string DisplayName,
+    Domain.Enums.AttributeDataType DataType,
+    string? Unit,
+    int DisplayOrder);
+
+public record UpdateAttributeDefinitionRequest(
+    string? Name,
+    string? DisplayName,
+    string? Unit,
+    int? DisplayOrder);

@@ -73,4 +73,32 @@ public sealed class ActivityAttributeDefinition
         IsActive = isActive ?? IsActive;
         DisplayOrder = newDisplayOrder ?? DisplayOrder;
     }
+
+    public void UpdateName(string newName)
+    {
+        if (string.IsNullOrWhiteSpace(newName))
+            throw new ArgumentException("Name cannot be empty.", nameof(newName));
+        if (newName.Length > 100)
+            throw new ArgumentException("Name cannot exceed 100 characters.", nameof(newName));
+        Name = newName.Trim();
+    }
+
+    public void UpdateDisplayName(string newDisplayName)
+    {
+        if (string.IsNullOrWhiteSpace(newDisplayName))
+            throw new ArgumentException("DisplayName cannot be empty.", nameof(newDisplayName));
+        if (newDisplayName.Length > 100)
+            throw new ArgumentException("DisplayName cannot exceed 100 characters.", nameof(newDisplayName));
+        DisplayName = newDisplayName.Trim();
+    }
+
+    public void UpdateUnit(string? newUnit)
+    {
+        Unit = newUnit?.Trim();
+    }
+
+    public void UpdateDisplayOrder(int newDisplayOrder)
+    {
+        DisplayOrder = newDisplayOrder;
+    }
 }

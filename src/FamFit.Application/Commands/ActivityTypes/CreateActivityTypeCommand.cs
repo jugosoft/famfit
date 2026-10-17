@@ -10,12 +10,11 @@ namespace FamFit.Application.Commands.ActivityTypes;
 /// Команда создания нового типа активности (только для FamilyAdmin).
 /// </summary>
 public record CreateActivityTypeCommand(
-    string Name,
-    Guid ActivityUnitId) : IRequest<ActivityType>;
+    string Name) : IRequest<ActivityType>;
 
 /// <summary>
 /// Handler команды CreateActivityTypeCommand.
-/// Содержит бизнес-логику: проверка роли пользователя, создание сущности.
+/// Содержит бизнес-логику: проверка имени, создание сущности.
 /// </summary>
 public class CreateActivityTypeHandler : IRequestHandler<CreateActivityTypeCommand, ActivityType>
 {
@@ -39,9 +38,10 @@ public class CreateActivityTypeHandler : IRequestHandler<CreateActivityTypeComma
                 $"Activity type with name '{request.Name}' already exists.");
 
         // Создание сущности через фабричный метод Domain-модели
-        var activityType = ActivityType.Create(request.Name, request.ActivityUnitId);
+        var activityType = ActivityType.Create(request.Name);
 
         _dbContext.ActivityTypes.Add(activityType);
+
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return activityType;

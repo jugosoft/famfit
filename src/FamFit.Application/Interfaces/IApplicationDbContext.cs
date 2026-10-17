@@ -12,7 +12,6 @@ public interface IApplicationDbContext
 {
     DbSet<User> Users { get; }
     DbSet<ActivityType> ActivityTypes { get; }
-    DbSet<ActivityUnit> ActivityUnits { get; }
     DbSet<ActivityAttributeDefinition> ActivityAttributeDefinitions { get; }
     DbSet<ActivityAttributeValue> AttributeValues { get; }
     DbSet<ActivityTypeAttributeValue> ActivityTypeAttributeValues { get; }

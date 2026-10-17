@@ -17,7 +17,6 @@ public sealed class FamFitDbContext : DbContext, IApplicationDbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<ActivityType> ActivityTypes => Set<ActivityType>();
-    public DbSet<ActivityUnit> ActivityUnits => Set<ActivityUnit>();
     public DbSet<ActivityAttributeDefinition> ActivityAttributeDefinitions => Set<ActivityAttributeDefinition>();
     public DbSet<ActivityAttributeValue> AttributeValues => Set<ActivityAttributeValue>();
     public DbSet<ActivityTypeAttributeValue> ActivityTypeAttributeValues => Set<ActivityTypeAttributeValue>();
@@ -99,58 +98,9 @@ public sealed class FamFitDbContext : DbContext, IApplicationDbContext
                 .IsUnique()
                 .HasDatabaseName("uq_activity_types_name");
 
-            entity.Property(e => e.ActivityUnitId)
-                .HasColumnType("uuid")
-                .HasColumnName("activity_unit_id");
-
             entity.Property(e => e.IsActive)
                 .IsRequired()
                 .HasColumnName("is_active");
-
-            entity.HasOne(e => e.ActivityUnit)
-                .WithMany(e => e.ActivityTypes)
-                .HasForeignKey(e => e.ActivityUnitId)
-                .OnDelete(DeleteBehavior.Restrict)
-                .HasConstraintName("fk_activity_types_activity_units");
-        });
-
-        // --- ActivityUnit ---
-        modelBuilder.Entity<ActivityUnit>(entity =>
-        {
-            entity.ToTable("activity_units");
-
-            entity.HasKey(e => e.Id);
-
-            entity.Property(e => e.Id)
-                .HasColumnType("uuid")
-                .HasDefaultValueSql("gen_random_uuid()");
-
-            entity.Property(e => e.Name)
-                .IsRequired()
-                .HasMaxLength(100)
-                .HasColumnName("name");
-
-            entity.HasIndex(e => e.Name)
-                .IsUnique()
-                .HasDatabaseName("uq_activity_units_name");
-
-            entity.Property(e => e.Symbol)
-                .IsRequired()
-                .HasMaxLength(20)
-                .HasColumnName("symbol");
-
-            entity.Property(e => e.DataType)
-                .IsRequired()
-                .HasMaxLength(10)
-                .HasColumnName("data_type");
-
-            entity.Property(e => e.IsActive)
-                .IsRequired()
-                .HasColumnName("is_active");
-
-            entity.Property(e => e.DisplayOrder)
-                .IsRequired()
-                .HasColumnName("display_order");
         });
 
         // --- ActivityLog ---

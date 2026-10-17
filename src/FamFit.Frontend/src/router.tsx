@@ -95,6 +95,18 @@ export const router = createBrowserRouter([
             element: <AdminPage />
           },
           {
+            path: '/admin/activity-types',
+            element: <AdminPage />
+          },
+          {
+            path: '/admin/attributes',
+            element: <AdminPage />
+          },
+          {
+            path: '/admin/users',
+            element: <AdminPage />
+          },
+          {
             path: '/profile',
             element: <ProfilePage />
           },

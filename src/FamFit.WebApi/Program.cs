@@ -231,7 +231,6 @@ catch (Exception ex)
 // === Map API Endpoints ===
 app.MapAuthEndpoints();
 app.MapActivityTypeEndpoints();
-app.MapActivityUnitEndpoints();
 app.MapActivityLogEndpoints();
 app.MapPushSubscriptionEndpoints();
 app.MapVapidEndpoints();
